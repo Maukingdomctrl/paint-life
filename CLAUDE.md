@@ -6,6 +6,7 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - Work through the 8 iterations in `docs/SPEC.md` §9 in order. Stop after each one, report in the format from spec §8, and wait for my go-ahead.
 - Never change scope without asking me. That includes adding, dropping or reinterpreting features.
 - A task is done only when `./gradlew assembleDebug testDebugUnitTest lintDebug` passes. Never claim a build passed without running it.
+- Run the `build-check` skill before reporting any task or iteration as done.
 - Never run `git commit` or `git push`. When work is ready, tell me and suggest a commit message.
 
 ## Build and versions
