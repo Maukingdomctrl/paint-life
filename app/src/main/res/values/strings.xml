@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paint Life</string>
+
+    <string name="nav_today">Today</string>
+    <string name="nav_exercise">Exercise</string>
+    <string name="nav_quiet">Quiet</string>
+    <string name="nav_my_time">My Time</string>
+    <string name="nav_progress">Progress</string>
+
+    <string name="title_today">Today</string>
+    <string name="title_exercise">Exercise</string>
+    <string name="title_quiet">Quiet Time</string>
+    <string name="title_my_time">My Time</string>
+    <string name="title_progress">Progress</string>
+
+    <string name="not_built_badge">Not built yet</string>
+    <string name="coming_in_iteration">Coming in Iteration %1$d</string>
+    <string name="not_built_note">Nothing on this screen is recorded or calculated yet.</string>
+
+    <string name="coming_today">Your three daily priorities, today\'s exercise and quiet-time progress, and a short summary of your day.</string>
+    <string name="coming_exercise">The step-up counter, your session history and the Paint Life Cat League.</string>
+    <string name="coming_quiet">The five-minute quiet timer, with daily, weekly and monthly history.</string>
+    <string name="coming_my_time">A 24-hour timeline for recording where your day actually goes.</string>
+    <string name="coming_progress">Reports for today, the last seven days, this month and last month.</string>
+</resources>

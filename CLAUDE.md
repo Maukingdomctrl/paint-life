@@ -47,7 +47,7 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 ## Data and backup
 - Use Room with explicit migrations and stable IDs. Never use destructive migration fallbacks. Wrap multi-table writes in transactions.
 - Provide JSON export/import through the system file picker (SAF), so no storage permission is needed. The JSON is versioned. Import validates the file and confirms before replacing anything.
-- Android Auto Backup is off: set `android:allowBackup="false"` and exclude everything in `data_extraction_rules.xml` (cloud backup and device transfer). Data leaves the device only through a manual JSON export.
+- Android Auto Backup is off: set `android:allowBackup="false"` and exclude everything in `data_extraction_rules.xml` (cloud backup and device transfer, API 31+) and `backup_rules.xml` (API 26–30). Data leaves the device only through a manual JSON export.
 - Request no permissions beyond `POST_NOTIFICATIONS` and the foreground-service permissions without asking me first.
 
 ## Release
