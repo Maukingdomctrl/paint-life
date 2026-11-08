@@ -1,6 +1,7 @@
 ---
 name: mobile-android-design
 description: Master Material Design 3 and Jetpack Compose patterns for building native Android apps. Use when designing Android interfaces, implementing Compose UI, or following Google's Material Design guidelines.
+model: sonnet
 ---
 
 # Android Mobile Design
@@ -18,9 +19,14 @@ Master Material Design 3 (Material You) and Jetpack Compose to build modern, ada
 - Implementing Android-specific gestures and interactions
 - Designing for different screen configurations
 
-## Detailed section: Core Concepts
+## References — read only the one the task needs
 
-Originally a 9201-byte section in this SKILL.md. Moved to `references/details.md` to fit Codex's 8 KB skill body cap.
+Do not read all of them; each is large.
+
+- `references/details.md` — short overview (M3 principles, Compose layout system, basic navigation/theming/components); start here for general questions
+- `references/material3-theming.md` — color, dynamic color, typography, shapes, elevation, responsive layouts
+- `references/compose-components.md` — lists, forms/input, dialogs and bottom sheets, loading states, animations
+- `references/android-navigation.md` — Navigation Compose, bottom bar, drawer, rail, deep links, nested graphs, nav animations
 
 ## Quick Start Component
 
