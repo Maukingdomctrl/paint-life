@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PaintLife" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/paint_life_cream</item>
+    <!-- Dark only (v1). The window background matches the Compose canvas, so there is no flash before Compose draws. -->
+    <style name="Theme.PaintLife" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/paint_life_canvas</item>
     </style>
 </resources>

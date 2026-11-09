@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only. -->
+<resources>
+    <string name="debug_menu">Debug menu</string>
+    <string name="debug_design_gallery">Design gallery</string>
+    <string name="debug_gallery_note">Sample states for design review. Nothing here is real data, and this gallery exists only in debug builds.</string>
+    <string name="debug_sample_badge">Sample</string>
+    <string name="debug_close_sample">Close sample</string>
+    <string name="debug_close_gallery">Close gallery</string>
+</resources>

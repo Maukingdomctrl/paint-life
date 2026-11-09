@@ -1,57 +1,112 @@
 package com.mauforge.paintlife.core.designsystem.theme
 
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.graphics.Color
 
-/** Raw palette. Screens use [MaterialTheme.colorScheme] roles, not these values directly. */
+/**
+ * Raw palette (dark only, GitHub Dark / VS Code Dark inspired). Screens use
+ * [MaterialTheme.colorScheme] roles or [PaintLifeTheme.colors], not these values directly.
+ * Every text/background pairing is checked in ContrastTest.
+ */
 object PaintLifePalette {
-    val Forest900 = Color(0xFF12301F)
-    val Forest700 = Color(0xFF1F4D3A)
-    val Forest500 = Color(0xFF3C7259)
-    val Forest100 = Color(0xFFD7E8DD)
+    /** App background. */
+    val Canvas = Color(0xFF0D1117)
 
-    val Amber700 = Color(0xFFB0741A)
-    val Amber500 = Color(0xFFE3A23B)
-    val Amber100 = Color(0xFFFBE9C8)
+    /** Cards and sheets. */
+    val Surface = Color(0xFF161B22)
 
-    val Cream = Color(0xFFFFF8EE)
-    val Surface = Color(0xFFFFFCF6)
-    val SurfaceSunken = Color(0xFFF4ECDD)
-    val Neutral300 = Color(0xFFD9D0BF)
-    val Neutral600 = Color(0xFF6B6559)
-    val Ink = Color(0xFF23271F)
+    /** Raised elements on a card: selected rows, active session bar, menus. */
+    val Raised = Color(0xFF1C2128)
 
-    val Clay = Color(0xFFB4483A)
-    val Clay100 = Color(0xFFF6DAD4)
+    /** Recessed trays, unpainted swatches, Quiet Time ground. */
+    val Sunken = Color(0xFF010409)
+
+    val Border = Color(0xFF30363D)
+
+    val Text = Color(0xFFE6EDF3)
+    val TextSecondary = Color(0xFF8B949E)
+
+    /** Filled buttons only; white text on it is 4.6:1, the light text colour is not enough. */
+    val Green = Color(0xFF238636)
+
+    /** Green for accents, rings and text. */
+    val GreenBright = Color(0xFF3FB950)
+    val GreenMuted = Color(0xFF12261E)
+
+    val Amber = Color(0xFFD29922)
+    val AmberSoft = Color(0xFFBB8009)
+    val AmberMuted = Color(0xFF2E2310)
+
+    val Blue = Color(0xFF58A6FF)
+
+    /** Errors and destructive actions only. Never used for a missed day. */
+    val Red = Color(0xFFF85149)
+    val RedMuted = Color(0xFF3A1A1C)
+
+    val White = Color(0xFFFFFFFF)
 }
 
-internal val PaintLifeLightColors: ColorScheme = lightColorScheme(
-    primary = PaintLifePalette.Forest700,
-    onPrimary = PaintLifePalette.Cream,
-    primaryContainer = PaintLifePalette.Forest100,
-    onPrimaryContainer = PaintLifePalette.Forest900,
-    secondary = PaintLifePalette.Amber700,
-    onSecondary = Color.White,
-    secondaryContainer = PaintLifePalette.Amber100,
-    onSecondaryContainer = PaintLifePalette.Forest900,
-    tertiary = PaintLifePalette.Forest500,
-    onTertiary = Color.White,
-    background = PaintLifePalette.Cream,
-    onBackground = PaintLifePalette.Ink,
+/**
+ * My Time category colours, keyed by the `colorKey` stored on each category. Muted, spread in
+ * lightness, and each at least 3:1 against [PaintLifePalette.Surface] (checked in ContrastTest).
+ */
+object CategoryPalette {
+    val colors: Map<String, Color> = mapOf(
+        "night" to Color(0xFF5B65BA),
+        "clay" to Color(0xFFA0694C),
+        "stone" to Color(0xFF7E7A73),
+        "slate" to Color(0xFF4F82BC),
+        "plum" to Color(0xFF9A7FD6),
+        "teal" to Color(0xFF3E9E9A),
+        "amber" to Color(0xFFE37B40),
+        "sage" to Color(0xFF68AC80),
+        "forest" to Color(0xFF3FB950),
+        "rose" to Color(0xFFE9A3B6),
+        "moss" to Color(0xFFC3D27F),
+    )
+
+    /** Fallback for an unknown key, so a bad record never crashes a screen. */
+    val fallback: Color = colors.getValue("stone")
+
+    fun forKey(colorKey: String?): Color = colors[colorKey] ?: fallback
+}
+
+internal val PaintLifeDarkColors: ColorScheme = darkColorScheme(
+    primary = PaintLifePalette.Green,
+    onPrimary = PaintLifePalette.White,
+    primaryContainer = PaintLifePalette.GreenMuted,
+    onPrimaryContainer = PaintLifePalette.GreenBright,
+    inversePrimary = PaintLifePalette.Green,
+    secondary = PaintLifePalette.Amber,
+    onSecondary = PaintLifePalette.Canvas,
+    secondaryContainer = PaintLifePalette.AmberMuted,
+    onSecondaryContainer = PaintLifePalette.Amber,
+    tertiary = PaintLifePalette.Blue,
+    onTertiary = PaintLifePalette.Canvas,
+    tertiaryContainer = PaintLifePalette.Raised,
+    onTertiaryContainer = PaintLifePalette.Blue,
+    background = PaintLifePalette.Canvas,
+    onBackground = PaintLifePalette.Text,
     surface = PaintLifePalette.Surface,
-    onSurface = PaintLifePalette.Ink,
-    surfaceVariant = PaintLifePalette.SurfaceSunken,
-    onSurfaceVariant = PaintLifePalette.Neutral600,
-    surfaceContainerLowest = PaintLifePalette.Surface,
-    surfaceContainerLow = PaintLifePalette.Surface,
-    surfaceContainer = PaintLifePalette.SurfaceSunken,
-    surfaceContainerHigh = PaintLifePalette.SurfaceSunken,
-    surfaceContainerHighest = PaintLifePalette.Neutral300,
-    outline = PaintLifePalette.Neutral300,
-    outlineVariant = PaintLifePalette.Neutral300,
-    error = PaintLifePalette.Clay,
-    onError = Color.White,
-    errorContainer = PaintLifePalette.Clay100,
-    onErrorContainer = PaintLifePalette.Ink,
+    onSurface = PaintLifePalette.Text,
+    surfaceVariant = PaintLifePalette.Raised,
+    onSurfaceVariant = PaintLifePalette.TextSecondary,
+    surfaceTint = PaintLifePalette.Surface,
+    inverseSurface = PaintLifePalette.Text,
+    inverseOnSurface = PaintLifePalette.Canvas,
+    surfaceDim = PaintLifePalette.Canvas,
+    surfaceBright = PaintLifePalette.Raised,
+    surfaceContainerLowest = PaintLifePalette.Sunken,
+    surfaceContainerLow = PaintLifePalette.Canvas,
+    surfaceContainer = PaintLifePalette.Surface,
+    surfaceContainerHigh = PaintLifePalette.Raised,
+    surfaceContainerHighest = PaintLifePalette.Raised,
+    outline = PaintLifePalette.TextSecondary,
+    outlineVariant = PaintLifePalette.Border,
+    error = PaintLifePalette.Red,
+    onError = PaintLifePalette.Canvas,
+    errorContainer = PaintLifePalette.RedMuted,
+    onErrorContainer = PaintLifePalette.Red,
+    scrim = PaintLifePalette.Sunken,
 )

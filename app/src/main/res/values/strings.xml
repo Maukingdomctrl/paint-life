@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Paint Life</string>
 
+    <!-- Navigation and titles -->
     <string name="nav_today">Today</string>
     <string name="nav_exercise">Exercise</string>
     <string name="nav_quiet">Quiet</string>
@@ -14,13 +15,264 @@
     <string name="title_my_time">My Time</string>
     <string name="title_progress">Progress</string>
 
+    <!-- Honest placeholders for destinations not built yet -->
     <string name="not_built_badge">Not built yet</string>
     <string name="coming_in_iteration">Coming in Iteration %1$d</string>
     <string name="not_built_note">Nothing on this screen is recorded or calculated yet.</string>
-
     <string name="coming_today">Your three daily priorities, today\'s exercise and quiet-time progress, and a short summary of your day.</string>
     <string name="coming_exercise">The step-up counter, your session history and the Paint Life Cat League.</string>
     <string name="coming_quiet">The five-minute quiet timer, with daily, weekly and monthly history.</string>
     <string name="coming_my_time">A 24-hour timeline for recording where your day actually goes.</string>
     <string name="coming_progress">Reports for today, the last seven days, this month and last month.</string>
+
+    <!-- Shared actions -->
+    <string name="action_start">Start</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_finish">Finish</string>
+    <string name="action_done">Done</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_try_again">Try again</string>
+    <string name="action_start_exercise">Exercise</string>
+    <string name="action_quiet_time">Quiet time</string>
+    <string name="action_log_time">Log time</string>
+    <string name="action_start_session">Start session</string>
+    <string name="action_resume_session">Resume session</string>
+    <string name="action_start_timed">Start timed challenge</string>
+    <string name="action_replay_level">Replay level</string>
+    <string name="action_cancel_session">Cancel session</string>
+    <string name="action_log_activity">Log activity</string>
+    <string name="action_delete_entry">Delete entry</string>
+
+    <!-- Shared states and units -->
+    <string name="state_loading">Loading</string>
+    <string name="category_distraction">Distraction</string>
+    <plurals name="reps">
+        <item quantity="one">%1$d rep</item>
+        <item quantity="other">%1$d reps</item>
+    </plurals>
+    <plurals name="reps_unit">
+        <item quantity="one">rep</item>
+        <item quantity="other">reps</item>
+    </plurals>
+    <plurals name="step_ups_unit">
+        <item quantity="one">step-up</item>
+        <item quantity="other">step-ups</item>
+    </plurals>
+    <plurals name="minutes_unit">
+        <item quantity="one">minute</item>
+        <item quantity="other">minutes</item>
+    </plurals>
+    <plurals name="sessions_unit">
+        <item quantity="one">session</item>
+        <item quantity="other">sessions</item>
+    </plurals>
+
+    <!-- Today -->
+    <string name="greeting_morning">Good morning</string>
+    <string name="greeting_afternoon">Good afternoon</string>
+    <string name="greeting_evening">Good evening</string>
+    <string name="today_canvas">Today\'s canvas</string>
+    <string name="today_swatch_exercise">Exercise</string>
+    <string name="today_swatch_quiet">Quiet time</string>
+    <string name="today_swatch_time">Time logged</string>
+    <string name="today_not_yet">Not yet</string>
+    <string name="today_done">Done</string>
+    <string name="today_priorities">Priorities</string>
+    <plurals name="today_priorities_done">
+        <item quantity="one">%1$d of %2$d done</item>
+        <item quantity="other">%1$d of %2$d done</item>
+    </plurals>
+    <string name="today_priorities_empty_title">What matters today?</string>
+    <string name="today_priorities_empty_body">Pick up to three things. Small ones count.</string>
+    <string name="today_add_priority">Add priority</string>
+    <string name="today_edit_priority">Edit priority: %1$s</string>
+    <string name="today_quick_actions">Quick actions</string>
+    <string name="today_so_far">Today so far</string>
+    <string name="today_strip_description">Today so far: %1$s recorded, %2$s not recorded</string>
+    <string name="today_strip_legend">Hatched stretches are time that passed without a record.</string>
+
+    <!-- Exercise -->
+    <string name="volume_lifetime">Lifetime step-ups</string>
+    <string name="volume_meter_description">%1$s of %2$s step-ups</string>
+    <string name="volume_goal_progress">%1$s to go to your first %2$s</string>
+    <string name="volume_goal_reached">You passed %1$s step-ups. Every session still adds up.</string>
+    <string name="session_open_running">Session in progress</string>
+    <string name="session_open_paused">Session paused</string>
+    <string name="session_open_summary">%1$s · %2$s active</string>
+    <string name="safety_title">Before you start</string>
+    <string name="safety_summary">A short warm-up, a comfortable step height and when to stop.</string>
+    <string name="safety_read">Read the guidance</string>
+    <string name="safety_open">Safety guidance</string>
+    <string name="safety_done">I\'ve read this</string>
+    <string name="safety_tip_warm_up_title">Warm up</string>
+    <string name="safety_tip_warm_up">March on the spot or walk around for 3 to 5 minutes first.</string>
+    <string name="safety_tip_height_title">Pick a comfortable step</string>
+    <string name="safety_tip_height">Use a stable, non-slip step that lets your knee stay below your hip.</string>
+    <string name="safety_tip_count_title">What counts as one rep</string>
+    <string name="safety_tip_count">Step up, bring both feet onto the step, then return both feet to the floor.</string>
+    <string name="safety_tip_alternate_title">Switch your lead leg</string>
+    <string name="safety_tip_alternate">Change which foot steps up first every set or so.</string>
+    <string name="safety_tip_rest_title">Rest when you want</string>
+    <string name="safety_tip_rest">Breaks are fine. Pause a session whenever you need to.</string>
+    <string name="safety_stop_title">Stop straight away if you feel</string>
+    <string name="safety_stop_body">Pain, dizziness, chest discomfort or unusual breathlessness. Rest, and seek medical advice if it doesn\'t settle.</string>
+    <string name="league_title">Cat League</string>
+    <plurals name="league_beaten_count">
+        <item quantity="one">%1$d of %2$d beaten</item>
+        <item quantity="other">%1$d of %2$d beaten</item>
+    </plurals>
+    <string name="league_next_opponent">Next opponent</string>
+    <string name="league_benchmark">%1$s\'s time</string>
+    <string name="league_your_best">Your best</string>
+    <string name="league_no_time_yet">No time yet</string>
+    <string name="league_optional_note">Optional. 1,000 reps against the clock, only when you feel ready.</string>
+    <string name="league_finish_open_first">Finish your open session first.</string>
+    <string name="league_all_beaten_title">All ten cats beaten</string>
+    <string name="league_all_beaten_body">Replay any level whenever you like.</string>
+    <string name="league_status_locked">Locked</string>
+    <string name="league_status_current">Up next</string>
+    <string name="league_status_best">Your best %1$s</string>
+    <string name="league_status_beaten">Beaten in %1$s</string>
+    <string name="league_open_cat">Open details</string>
+    <string name="league_disclaimer">Cat times are fictional game benchmarks, not medical recommendations.</string>
+    <string name="session_title_volume">Step-up session</string>
+    <string name="session_title_timed">Timed challenge vs %1$s</string>
+    <string name="session_clock_active">Active time</string>
+    <string name="session_clock_timed">Challenge clock</string>
+    <string name="session_paused_volume">Paused. Paused time isn\'t counted.</string>
+    <string name="session_paused_timed">Paused. The challenge clock keeps running.</string>
+    <string name="session_timed_meter">%1$s of %2$s reps</string>
+    <string name="session_timed_remaining">%1$s to go · %2$s\'s time %3$s</string>
+    <string name="session_add_reps">Add %1$d</string>
+    <string name="session_undo">Undo last tap</string>
+    <string name="session_correct_count">Correct count</string>
+    <string name="session_reset">Reset</string>
+    <string name="cat_level">Level %1$d</string>
+    <string name="cat_state_current">%1$s, next opponent</string>
+    <string name="cat_state_beaten">%1$s, beaten</string>
+    <string name="cat_state_locked">%1$s, locked</string>
+    <string name="cat_locked_hint">Unlocks when you beat %1$s\'s time.</string>
+    <string name="cat_current_hint">Finish 1,000 reps faster than %1$s to unlock the next cat. A tie doesn\'t count.</string>
+    <string name="cat_beaten_hint">You beat %1$s. Replay any time; your best time stays.</string>
+    <string name="victory_title">You beat %1$s</string>
+    <string name="victory_margin">%1$s under %2$s</string>
+    <string name="victory_unlocked">%1$s is now unlocked.</string>
+    <string name="victory_champion">You\'ve beaten the whole league.</string>
+
+    <!-- Cat League roster. Personality lines are drafts for the owner to edit. -->
+    <string name="cat_ana_name">Ana</string>
+    <string name="cat_ana_breed">Orange tabby</string>
+    <string name="cat_ana_personality">A friendly warm-up partner who cheers every step and naps between sets.</string>
+    <string name="cat_mia_name">Mia</string>
+    <string name="cat_mia_breed">White Persian</string>
+    <string name="cat_mia_personality">Unhurried and elegant. Never rushes, never stops.</string>
+    <string name="cat_zoe_name">Zoe</string>
+    <string name="cat_zoe_breed">Grey Scottish Fold</string>
+    <string name="cat_zoe_personality">Curious and steady. Counts every rep under her breath.</string>
+    <string name="cat_eva_name">Eva</string>
+    <string name="cat_eva_breed">Black cat</string>
+    <string name="cat_eva_personality">Quiet focus. Shows up at your side just when you need a push.</string>
+    <string name="cat_luna_name">Luna</string>
+    <string name="cat_luna_breed">Calico</string>
+    <string name="cat_luna_personality">Playful and bright. Turns every set into a game.</string>
+    <string name="cat_sara_name">Sara</string>
+    <string name="cat_sara_breed">Maine Coon</string>
+    <string name="cat_sara_personality">Big, calm and strong. Takes the long view.</string>
+    <string name="cat_nina_name">Nina</string>
+    <string name="cat_nina_breed">Siamese</string>
+    <string name="cat_nina_personality">A talkative coach who tells you exactly how you\'re doing.</string>
+    <string name="cat_maya_name">Maya</string>
+    <string name="cat_maya_breed">Bengal</string>
+    <string name="cat_maya_personality">All energy. Loves a fast pace and a clean finish.</string>
+    <string name="cat_aria_name">Aria</string>
+    <string name="cat_aria_breed">Tuxedo cat</string>
+    <string name="cat_aria_personality">Sharp and tidy. Places every step with care.</string>
+    <string name="cat_champion_name">Champion</string>
+    <string name="cat_champion_breed">Tortoiseshell</string>
+    <string name="cat_champion_personality">The one to beat, and generous in defeat.</string>
+
+    <!-- Quiet Time -->
+    <string name="quiet_subtitle_ready">Five minutes, just for you.</string>
+    <string name="quiet_subtitle_running">Breathe. Nothing else needs you right now.</string>
+    <string name="quiet_subtitle_paused">Paused</string>
+    <string name="quiet_subtitle_done">Five quiet minutes, done.</string>
+    <string name="quiet_label_left">left</string>
+    <string name="quiet_label_done">of quiet</string>
+    <string name="quiet_ring_description">Quiet time, %1$s left</string>
+    <string name="quiet_ring_done">Quiet time complete</string>
+    <string name="quiet_finish_early_note">Finishing before 5:00 saves a shorter session; it doesn\'t count as a full one.</string>
+    <string name="quiet_this_week">This week</string>
+    <string name="quiet_day_done">quiet time done</string>
+    <string name="quiet_day_not_done">no quiet time recorded</string>
+    <string name="quiet_month_minutes">This month</string>
+    <string name="quiet_month_sessions">Full sessions this month</string>
+
+    <!-- My Time -->
+    <string name="my_time_previous_day">Previous day</string>
+    <string name="my_time_next_day">Next day</string>
+    <string name="my_time_today">Today</string>
+    <string name="my_time_layer_actual">Actual</string>
+    <string name="my_time_layer_planned">Planned</string>
+    <string name="my_time_layer_both">Both</string>
+    <string name="my_time_observation_title">Day %1$d of 7: just record</string>
+    <string name="my_time_observation_body">For the first week, note what you actually do. No plans or targets yet.</string>
+    <string name="my_time_insights_title">Your first week is in</string>
+    <string name="my_time_insights_body">See where your time went, then build a schedule from it if you want one.</string>
+    <string name="my_time_see_insights">See where time went</string>
+    <string name="my_time_suggest_schedule">Suggest a schedule</string>
+    <string name="my_time_legend_unrecorded">Not recorded</string>
+    <string name="my_time_block_actual">%1$s, %2$s to %3$s</string>
+    <string name="my_time_block_planned">Planned %1$s, %2$s to %3$s</string>
+    <string name="my_time_log_title">Log activity</string>
+    <string name="my_time_edit_title">Edit activity</string>
+    <string name="my_time_category">Category</string>
+    <string name="my_time_start">Start</string>
+    <string name="my_time_end">End</string>
+    <string name="my_time_next_day_suffix">%1$s next day</string>
+    <string name="my_time_duration">Duration: %1$s</string>
+    <string name="overlap_title">This overlaps another entry</string>
+    <string name="overlap_body">%1$s (%2$s) overlaps %3$s (%4$s). Actual entries can\'t overlap, so choose what to keep.</string>
+    <string name="overlap_trim">Trim %1$s to %2$s</string>
+    <string name="overlap_replace">Replace %1$s</string>
+    <string name="overlap_go_back">Go back and change the times</string>
+
+    <!-- Progress -->
+    <string name="progress_period_today">Today</string>
+    <string name="progress_period_7_days">7 days</string>
+    <string name="progress_period_this_month">This month</string>
+    <string name="progress_period_last_month">Last month</string>
+    <string name="progress_exercise">Exercise</string>
+    <string name="progress_exercise_empty_title">No sessions in this period</string>
+    <string name="progress_exercise_empty_body">Sessions you finish will show here.</string>
+    <plurals name="progress_in_sessions">
+        <item quantity="one">in %1$d session</item>
+        <item quantity="other">in %1$d sessions</item>
+    </plurals>
+    <string name="progress_average_session">Average session</string>
+    <string name="progress_best_against">Best timed, vs %1$s</string>
+    <string name="progress_no_timed">No timed challenge</string>
+    <string name="progress_league_beaten">Cat League: %1$d of 10 beaten</string>
+    <string name="progress_quiet">Quiet Time</string>
+    <string name="progress_quiet_completed">Completed</string>
+    <string name="progress_quiet_minutes">In total</string>
+    <plurals name="progress_days_with_quiet">
+        <item quantity="one">%1$d of %2$d days with quiet time</item>
+        <item quantity="other">%1$d of %2$d days with quiet time</item>
+    </plurals>
+    <string name="progress_time">Time</string>
+    <string name="progress_time_empty_title">Nothing recorded in this period</string>
+    <string name="progress_time_empty_body">Entries from My Time will show here.</string>
+    <string name="progress_hours_per_category">Hours per category</string>
+    <string name="progress_planned_vs_actual">Planned and actual</string>
+    <string name="progress_planned_vs_actual_row">%1$s, planned %2$s, actual %3$s</string>
+    <string name="progress_planned_actual_values">%1$s planned · %2$s actual</string>
+    <string name="progress_legend_planned">Planned</string>
+    <string name="progress_legend_actual">Actual</string>
+    <string name="progress_daily_distribution">Each day</string>
+    <string name="progress_day_recorded">%1$s, %2$s recorded</string>
+    <string name="progress_unrecorded">Not recorded</string>
+    <string name="progress_time_note">Totals only. There\'s no score here.</string>
 </resources>

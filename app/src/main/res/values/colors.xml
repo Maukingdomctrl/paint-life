@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Used only before Compose draws (window background, launcher icon). Compose colours live in Color.kt. -->
+    <!-- Used only before Compose draws (window background) and by the launcher icon. Compose colours live in Color.kt. -->
+    <color name="paint_life_canvas">#0D1117</color>
     <color name="paint_life_cream">#FFF8EE</color>
     <color name="paint_life_forest">#1F4D3A</color>
     <color name="paint_life_amber">#E3A23B</color>

@@ -25,11 +25,21 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - Midnight: My Time entries are split at local midnight, so each day gets its share. Exercise and quiet sessions count on the day they started.
 - Handle midnight rollover, time-zone changes and DST. A date change never deletes data.
 
+## Visual design (decided in Iteration 2; overrides the cream direction in docs/SPEC.md §3)
+- Dark theme only, inspired by GitHub Dark / VS Code Dark. No light theme in v1. Status and navigation bar icons are light.
+- Palette: background #0D1117, cards #161B22, raised #1C2128, sunken #010409, borders #30363D, text #E6EDF3, secondary text #8B949E, green #238636 (filled buttons, white label) and #3FB950 (accents/text), amber #D29922 / #BB8009, blue #58A6FF (info/links), red #F85149 (errors and destructive actions only). Shades may change only to pass contrast; `ContrastTest` enforces it.
+- Swatch rule everywhere: Exercise paints green, Quiet paints amber, Time paints in its category colours, partly painted = filled in proportion, unpainted = sunken surface. Never red for a missed day.
+- Category colours are muted, spread in lightness and at least 3:1 against #161B22. Charts and timelines always name categories in text, so colour is never the only cue.
+- Quiet Time keeps its own calm full-screen look (sunken background, one amber ring) within this palette.
+- Fonts: Bricolage Grotesque for headings and cat names, Atkinson Hyperlegible Next for text and all numbers (tabular figures). Both bundled, SIL OFL.
+- The Design gallery and all sample states live only in `app/src/debug/`. Release builds show the honest "Coming in Iteration N" screens until each feature is wired.
+
 ## Exercise / Cat League
 - The timed 1,000-rep challenge is in v1. The next cat unlocks only when the user beats the current cat's benchmark, and beating means strictly faster (a tie doesn't unlock).
 - In timed mode the user can pause, but the clock keeps running. In normal sessions, paused time is left out of active duration.
 - Lifetime total reps (volume) and timed results are separate achievements. Earlier levels can be replayed. Never raise intensity automatically, and never punish missed days.
 - Cat artwork: I will provide it. Until then, use one neutral placeholder that is clearly marked as temporary and loads from a single place, so swapping in my art means replacing files only. Never load images from remote URLs.
+- Cat photos arrive as `art/cats/01_ana.png` … `10_champion.png`. On import: centre-crop square, resize to 640×640, convert to WebP, save as `app/src/main/res/drawable-nodpi/cat_<key>.webp`, and delete the matching `res/values/cat_art_<key>.xml` placeholder alias. Avatars are circular, with fixed sizes (40/56/96/160dp); locked = greyscale at 55% plus a lock badge.
 
 ## Quiet Time
 - The timer runs in a foreground service with an ongoing notification and an alert when it finishes. Request `POST_NOTIFICATIONS` (API 33+) at the moment it's needed, and handle a refusal gracefully.

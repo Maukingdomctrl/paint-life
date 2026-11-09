@@ -1,6 +1,6 @@
 # Project manifest
 
-Updated at the end of each iteration. Last update: Iteration 1 (foundation and architecture).
+Updated at the end of each iteration. Last update: Iteration 2 (visual design and all screen layouts).
 
 ## Toolchain and versions
 
@@ -49,29 +49,54 @@ Known deviations from the official tables:
 ### Manifest and resources (`app/src/main/`)
 - `AndroidManifest.xml`: no permissions, `allowBackup=false`
 - `res/xml/data_extraction_rules.xml` (API 31+) and `res/xml/backup_rules.xml` (API 26-30): exclude everything
-- `res/values/{strings,colors,themes}.xml`
+- `res/values/{strings,colors,themes}.xml`: dark window theme; all UI strings and plurals
+- `res/values/cat_art_{ana,mia,zoe,eva,luna,sara,nina,maya,aria,champion}.xml`: TEMPORARY aliases of the placeholder, replaced by `res/drawable-nodpi/cat_<key>.webp` on import
+- `res/drawable/cat_placeholder.xml`: TEMPORARY neutral cat avatar
+- `res/drawable/ic_{check,lock,add,undo,pause,play,flag,info,chevron_left,chevron_right,close,edit,refresh}.xml`: Material icon shapes (Apache 2.0)
+- `res/font/bricolage_grotesque.ttf`, `res/font/atkinson_hyperlegible_next.ttf`: bundled variable fonts (SIL OFL 1.1, licences in `docs/licenses/`)
 - `res/drawable/ic_launcher_{foreground,monochrome}.xml`, `res/mipmap-anydpi/ic_launcher{,_round}.xml`
 - `res/drawable/ic_nav_{today,exercise,quiet,my_time,progress}.xml`: original vector icons
 
 ### Kotlin (`app/src/main/kotlin/com/mauforge/paintlife/`)
 - `PaintLifeApplication.kt`: Hilt app; records the first-launch date
-- `MainActivity.kt`: edge-to-edge, dark system-bar icons, hosts the shell
-- `navigation/`: `Routes`, `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite)
-- `core/designsystem/theme/`: `Color`, `Type`, `Shape`, `Spacing`, `Theme`
-- `core/designsystem/component/`: `PaintLifeCard`, `NotYetBuiltState`
+- `MainActivity.kt`: edge-to-edge, light system-bar icons on the dark theme, no nav-bar scrim
+- `navigation/`: `Routes`, `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot)
+- `core/designsystem/theme/`: `Color` (dark palette, `CategoryPalette`), `PaintLifeColors` (extended roles, swatch rule), `Type` (fonts, `NumberStyles`), `Shape` (`ShapeTokens`), `Spacing`, `Theme` (dark only)
+- `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`
 - `core/database/`: `PaintLifeDatabase` (v1), `Converters`, `Migrations`, `SeedData` (+ `SeedCallback`), `SessionStatus`
 - `core/datastore/UserPreferencesRepository.kt`
 - `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, application scope
-- `core/time/`: `TimeProvider`, `TimerCheckpoint`
-- `today/`: `TodayScreen`, `TodayEntities` (DailyRecord, Priority)
-- `exercise/`: `ExerciseScreen`, `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest)
-- `quiet/`: `QuietScreen`, `QuietEntities` (QuietSession)
-- `mytime/`: `MyTimeScreen`, `MyTimeEntities` (ActivityCategory, TimeEntry, DailySchedule, ScheduleBlock)
-- `progress/ProgressScreen.kt`
+- `core/time/`: `TimeProvider`, `TimerCheckpoint`, `DurationFormat`
+- `today/`: `TodayScreen`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`
+- `exercise/`: `ExerciseScreen`, `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState`, `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `CatDetailContent` (+ victory)
+- `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (+ `CatArt` placeholder detection)
+- `quiet/`: `QuietScreen`, `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent`
+- `mytime/`: `MyTimeScreen`, `MyTimeEntities` (ActivityCategory, TimeEntry, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ log sheet, overlap)
+- `progress/`: `ProgressScreen`, `ProgressUiState`, `ProgressContent`, `Charts` (category bars, planned vs actual, daily distribution)
 
 ### Tests (`app/src/test/`)
 - `resources/robolectric.properties`: uses a plain Application in tests
 - `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest`
 - `core/datastore/UserPreferencesRepositoryTest`
-- `core/time/TimeProviderTest`
+- `core/time/TimeProviderTest`, `core/time/DurationFormatTest`
+- `core/designsystem/theme/ContrastTest`: WCAG ratios for every pairing and category colour
+- `core/designsystem/component/ComponentsTest`: touch targets, semantics, real actions
+- `exercise/cats/CatRosterTest`: roster vs seed data, names, placeholder slots
+- `mytime/TimelineGeometryTest`: midnight split, DST 23/25-hour days, gaps
+- `debug/ScreenLayoutsTest`: every gallery sample at 200% text on 320dp, plus layout rules
 - `navigation/NavigationTest`: Compose UI test under Robolectric
+
+### Debug only (`app/src/debug/`), never in release
+- `AndroidManifest.xml`: `DesignGalleryActivity`
+- `res/drawable/ic_debug.xml`, `res/values/debug_strings.xml`
+- `kotlin/.../debug/DebugMenu.kt`: top-corner menu opening the gallery
+- `kotlin/.../debug/DesignGallery.kt`: gallery activity, index and full-screen sample frame with a "Sample" badge
+- `kotlin/.../debug/DesignSheets.kt`: foundations, components and cat avatar review sheets
+- `kotlin/.../debug/SampleStates.kt`: labelled sample UI states for every screen
+- `kotlin/.../debug/DesignPreviews.kt`: Android Studio previews
+
+### Release only (`app/src/release/`)
+- `kotlin/.../debug/DebugMenu.kt`: empty, so release has no debug menu
+
+### Docs
+- `docs/licenses/OFL-BricolageGrotesque.txt`, `docs/licenses/OFL-AtkinsonHyperlegibleNext.txt`

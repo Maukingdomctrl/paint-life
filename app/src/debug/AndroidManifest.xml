@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only. Release builds have no design gallery. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".debug.DesignGalleryActivity"
+            android:exported="false"
+            android:label="@string/debug_design_gallery"
+            android:theme="@style/Theme.PaintLife" />
+    </application>
+</manifest>

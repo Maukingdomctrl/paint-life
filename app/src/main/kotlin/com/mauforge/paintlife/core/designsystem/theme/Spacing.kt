@@ -16,8 +16,14 @@ data class Spacing(
     val xl: Dp = 24.dp,
     val xxl: Dp = 32.dp,
     val xxxl: Dp = 48.dp,
-    /** Horizontal gutter for screen content. */
+    /** Horizontal gutter for screen content on phones. */
     val screenGutter: Dp = 20.dp,
+    /** Horizontal gutter from 600dp window width. */
+    val screenGutterWide: Dp = 24.dp,
+    /** Content never stretches wider than this, so lines stay readable on tablets. */
+    val contentMaxWidth: Dp = 640.dp,
+    /** Minimum size of anything tappable. */
+    val minTouchTarget: Dp = 48.dp,
 )
 
 internal val LocalSpacing = staticCompositionLocalOf { Spacing() }
