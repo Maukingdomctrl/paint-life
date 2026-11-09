@@ -27,6 +27,11 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Singleton
 
+/** Lets a Hilt test jump the monotonic clock forward (e.g. past a 5-minute quiet session). Reset it in @Before. */
+object TestMonotonic {
+    @Volatile var offsetMillis: Long = 0L
+}
+
 /**
  * Replaces [AppModule] in @HiltAndroidTest tests: a fresh in-memory database and a throwaway
  * DataStore file per test, the system clocks, and no system broadcasts.
@@ -57,7 +62,8 @@ object TestAppModule {
 
     @Provides
     @Singleton
-    fun provideSessionClock(): SessionClock = SessionClock(elapsed = { System.nanoTime() / 1_000_000 }, boot = { 1 })
+    fun provideSessionClock(): SessionClock =
+        SessionClock(elapsed = { System.nanoTime() / 1_000_000 + TestMonotonic.offsetMillis }, boot = { 1 })
 
     @Provides
     @Singleton

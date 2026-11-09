@@ -6,6 +6,8 @@ import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.DayMoment
 import com.mauforge.paintlife.exercise.ExerciseDayTotals
 import com.mauforge.paintlife.exercise.ExerciseRepository
+import com.mauforge.paintlife.quiet.QuietDayTotals
+import com.mauforge.paintlife.quiet.QuietRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +34,7 @@ import javax.inject.Inject
 class TodayViewModel @Inject constructor(
     private val repository: TodayRepository,
     private val exercise: ExerciseRepository,
+    private val quiet: QuietRepository,
     dayClock: DayClock,
 ) : ViewModel() {
 
@@ -54,6 +57,7 @@ class TodayViewModel @Inject constructor(
         val priorities: List<PriorityEntity>,
         val offer: CarryOverOffer?,
         val exercise: ExerciseDayTotals,
+        val quiet: QuietDayTotals,
     )
 
     private val local = MutableStateFlow(Local())
@@ -68,8 +72,9 @@ class TodayViewModel @Inject constructor(
             repository.observePriorities(date),
             repository.observeCarryOver(date),
             exercise.observeDayTotals(date),
-        ) { priorities, offer, exerciseTotals ->
-            DayData(date, priorities, offer, exerciseTotals)
+            quiet.observeDay(date),
+        ) { priorities, offer, exerciseTotals, quietTotals ->
+            DayData(date, priorities, offer, exerciseTotals, quietTotals)
         }
     }
 
@@ -93,7 +98,9 @@ class TodayViewModel @Inject constructor(
             },
             // A session counts on the day it started (open sessions included).
             exercise = ExerciseToday(reps = data.exercise.reps, sessions = data.exercise.sessions),
-            quickActions = listOf(QuickAction.StartExercise),
+            // Quiet sessions count on the day they started; only finished ones add minutes.
+            quiet = QuietToday(completed = data.quiet.completed, minutes = data.quiet.minutes, fill = data.quiet.fill),
+            quickActions = listOf(QuickAction.StartExercise, QuickAction.QuietTime),
         )
         val editor = when (val editor = local.editor) {
             null -> null

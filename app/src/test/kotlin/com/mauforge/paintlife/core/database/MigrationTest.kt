@@ -53,8 +53,20 @@ class MigrationTest {
     }
 
     @Test
+    fun version3MigratesToTheExportedVersion4Schema() {
+        helper.createDatabase(3).close()
+        helper.runMigrationsAndValidate(4, migrations).close()
+    }
+
+    @Test
+    fun version1MigratesAllTheWayToVersion4() {
+        helper.createDatabase(1).close()
+        helper.runMigrationsAndValidate(4, migrations).close()
+    }
+
+    @Test
     fun everyVersionAfterOneHasAMigration() {
-        val currentVersion = 3
+        val currentVersion = 4
         val covered = migrations.map { it.startVersion to it.endVersion }.toSet()
         val required = (1 until currentVersion).map { it to it + 1 }.toSet()
         assertEquals(required, covered)
@@ -142,6 +154,32 @@ class MigrationTest {
             )
             assertEquals(listOf(listOf("timed_level_1", "timed")), db.rows("SELECT key, sessionId FROM personal_best"))
             assertEquals(emptyList<List<String?>>(), db.rows("PRAGMA foreign_key_check"))
+        }
+    }
+
+    @Test
+    fun quietSessionsSurviveVersion4WithZones() {
+        helper.createDatabase(3).use { db ->
+            db.execSQL(
+                "INSERT INTO quiet_session (id, status, startedAt, zoneId, startDate, endedAt, targetDurationMillis, " +
+                    "updatedAt, activeDurationMillis, activeAtSegmentStartMillis, segmentStartElapsedRealtime, bootCount) VALUES " +
+                    "('done', 'COMPLETED', 1000, 'Europe/London', '2026-11-08', 301000, 300000, 301000, 300000, 300000, NULL, 4), " +
+                    "('open', 'RUNNING', 5000, 'Asia/Tokyo', '2026-11-09', NULL, 300000, 6000, 1000, 0, 77, 4)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(4, migrations).use { db ->
+            assertEquals(
+                listOf(
+                    listOf("done", "COMPLETED", "1000", "Europe/London", "2026-11-08", "301000", "Europe/London", "300000", "301000", "Europe/London", "300000", "300000", null, "4"),
+                    listOf("open", "RUNNING", "5000", "Asia/Tokyo", "2026-11-09", null, null, "300000", "6000", "Asia/Tokyo", "1000", "0", "77", "4"),
+                ),
+                db.rows(
+                    "SELECT id, status, startedAt, zoneId, startDate, endedAt, endedZoneId, targetDurationMillis, updatedAt, " +
+                        "updatedZoneId, activeDurationMillis, activeAtSegmentStartMillis, segmentStartElapsedRealtime, bootCount " +
+                        "FROM quiet_session ORDER BY id",
+                ),
+            )
         }
     }
 

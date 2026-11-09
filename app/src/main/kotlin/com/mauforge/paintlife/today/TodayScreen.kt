@@ -25,6 +25,7 @@ import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 @Composable
 fun TodayScreen(
     onStartExercise: () -> Unit,
+    onOpenQuiet: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel(),
 ) {
@@ -48,7 +49,8 @@ fun TodayScreen(
                 onQuickAction = { action ->
                     when (action) {
                         QuickAction.StartExercise -> onStartExercise()
-                        QuickAction.QuietTime, QuickAction.LogTime -> Unit
+                        QuickAction.QuietTime -> onOpenQuiet()
+                        QuickAction.LogTime -> Unit
                     }
                 },
             )

@@ -26,6 +26,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.R
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
 import com.mauforge.paintlife.exercise.ExerciseRepository
+import com.mauforge.paintlife.quiet.QuietRepository
+import com.mauforge.paintlife.core.time.SessionTimer
+import com.mauforge.paintlife.core.time.TimerCheckpoint
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.testing.TestTime
 import kotlinx.coroutines.flow.first
@@ -52,6 +55,7 @@ class TodayScreenTest {
     private lateinit var db: PaintLifeDatabase
     private lateinit var repository: TodayRepository
     private var exerciseOpened = 0
+    private var quietOpened = 0
 
     @Before
     fun setUp() {
@@ -65,8 +69,8 @@ class TodayScreenTest {
     }
 
     private fun show() {
-        val viewModel = TodayViewModel(repository, ExerciseRepository(db, time.provider), time.dayClock)
-        composeRule.setContent { PaintLifeTheme { TodayScreen(onStartExercise = { exerciseOpened++ }, viewModel = viewModel) } }
+        val viewModel = TodayViewModel(repository, ExerciseRepository(db, time.provider), QuietRepository(db, time.provider), time.dayClock)
+        composeRule.setContent { PaintLifeTheme { TodayScreen(onStartExercise = { exerciseOpened++ }, onOpenQuiet = { quietOpened++ }, viewModel = viewModel) } }
     }
 
     private fun string(id: Int, vararg args: Any): String = context.getString(id, *args)
@@ -205,25 +209,46 @@ class TodayScreenTest {
     }
 
     @Test
-    fun unbuiltAreasSayNotTrackedYetAndOnlyTheExerciseActionIsOffered() {
+    fun onlyTimeIsNotTrackedYetAndTheExerciseAndQuietActionsAreOffered() {
         show()
         waitFor(hasTestTag("today_content"))
 
         listOf("swatch_exercise", "swatch_quiet", "swatch_time").forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
-        // Exercise is tracked now; quiet time and time are not yet.
-        assertEquals(2, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
+        // Exercise and quiet time are tracked now; time is not yet.
+        assertEquals(1, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
         // Scroll to the end so every section that exists has been composed.
         val exerciseAction = hasText(string(R.string.action_start_exercise)) and hasClickAction()
-        scrollTo(exerciseAction)
+        val quietAction = hasText(string(R.string.action_quiet_time)) and hasClickAction()
+        scrollTo(quietAction)
         listOf(R.string.today_so_far, R.string.action_log_time).forEach {
             assertEquals(string(it), 0, composeRule.onAllNodes(hasText(string(it)), useUnmergedTree = true).fetchSemanticsNodes().size)
         }
 
         composeRule.onNode(exerciseAction).performClick()
+        composeRule.onNode(quietAction).performClick()
         composeRule.waitForIdle()
         assertEquals(1, exerciseOpened)
+        assertEquals(1, quietOpened)
+    }
+
+    @Test
+    fun theQuietSwatchShowsMinutesForAShortSessionAndDoneForAFullOne() {
+        val quiet = QuietRepository(db, time.provider)
+        runBlocking {
+            val short = quiet.start(SessionTimer.started(0L, 1))
+            quiet.endEarly(short.id, TimerCheckpoint(180_000L, 180_000L, null, 1))
+        }
+        show()
+        waitFor(hasText(string(R.string.today_quiet_minutes, 3)))
+
+        runBlocking {
+            val full = quiet.start(SessionTimer.started(0L, 1))
+            quiet.complete(full.id, TimerCheckpoint(300_000L, 300_000L, null, 1), overshootMillis = 0L)
+        }
+        waitForNo(hasText(string(R.string.today_quiet_minutes, 3)))
+        assertEquals(1, composeRule.onAllNodes(hasText(string(R.string.today_done)), useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 
     @Test

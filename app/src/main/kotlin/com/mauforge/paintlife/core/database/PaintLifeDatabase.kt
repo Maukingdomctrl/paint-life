@@ -13,6 +13,7 @@ import com.mauforge.paintlife.mytime.ActivityCategoryEntity
 import com.mauforge.paintlife.mytime.DailyScheduleEntity
 import com.mauforge.paintlife.mytime.ScheduleBlockEntity
 import com.mauforge.paintlife.mytime.TimeEntryEntity
+import com.mauforge.paintlife.quiet.QuietDao
 import com.mauforge.paintlife.quiet.QuietSessionEntity
 import com.mauforge.paintlife.today.DailyRecordEntity
 import com.mauforge.paintlife.today.PriorityEntity
@@ -28,6 +29,9 @@ import java.time.ZoneId
  *
  * Version 3 (Iteration 4): zone ids beside exercise end/update and level unlock/beat instants,
  * and an index on exercise_session.startedAt.
+ *
+ * Version 4 (Iteration 5): zone ids beside quiet_session end/update instants, and an index on
+ * quiet_session.startedAt.
  */
 @Database(
     entities = [
@@ -42,7 +46,7 @@ import java.time.ZoneId
         DailyScheduleEntity::class,
         ScheduleBlockEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -51,6 +55,8 @@ abstract class PaintLifeDatabase : RoomDatabase() {
     abstract fun todayDao(): TodayDao
 
     abstract fun exerciseDao(): ExerciseDao
+
+    abstract fun quietDao(): QuietDao
 
     companion object {
         const val NAME = "paint_life.db"

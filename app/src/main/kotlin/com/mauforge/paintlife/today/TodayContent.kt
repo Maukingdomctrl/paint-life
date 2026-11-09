@@ -147,15 +147,16 @@ private fun TodayCanvas(state: TodayUiState) {
                 segments = paintedOrEmpty(exercise != null && exercise.sessions > 0, colors.swatchExercise),
                 modifier = Modifier.weight(1f).testTag("swatch_exercise"),
             )
-            val quiet = state.quietCompletedToday
+            val quiet = state.quiet
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_quiet),
-                value = when (quiet) {
-                    null -> notTracked
-                    true -> stringResource(R.string.today_done)
-                    false -> stringResource(R.string.today_not_yet)
+                value = when {
+                    quiet == null -> notTracked
+                    quiet.completed -> stringResource(R.string.today_done)
+                    quiet.fill > 0f -> stringResource(R.string.today_quiet_minutes, quiet.minutes)
+                    else -> stringResource(R.string.today_not_yet)
                 },
-                segments = paintedOrEmpty(quiet == true, colors.swatchQuiet),
+                segments = if (quiet != null && quiet.fill > 0f) listOf(SwatchSegment(colors.swatchQuiet, quiet.fill)) else emptyList(),
                 modifier = Modifier.weight(1f).testTag("swatch_quiet"),
             )
             val time = state.timeByCategory

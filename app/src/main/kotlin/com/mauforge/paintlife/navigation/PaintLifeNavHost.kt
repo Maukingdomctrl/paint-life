@@ -29,7 +29,10 @@ fun PaintLifeNavHost(
         modifier = modifier,
     ) {
         composable<TodayRoute> {
-            TodayScreen(onStartExercise = { navController.openExerciseSession() })
+            TodayScreen(
+                onStartExercise = { navController.openExerciseSession() },
+                onOpenQuiet = { navController.navigateToTopLevel(TopLevelDestination.QUIET) },
+            )
         }
         navigation<ExerciseGraph>(startDestination = ExerciseRoute) {
             composable<ExerciseRoute> {

@@ -44,6 +44,13 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 ## Quiet Time
 - The timer runs in a foreground service with an ongoing notification and an alert when it finishes. Request `POST_NOTIFICATIONS` (API 33+) at the moment it's needed, and handle a refusal gracefully.
 - The timer is based on timestamps, so it stays correct when the screen is locked, the app is in the background or the user is interrupted. An incomplete session never counts as a completed 5-minute session.
+- Foreground service type `specialUse`, with a `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` explanation (`shortService` is too short). No `SCHEDULE_EXACT_ALARM` or `USE_EXACT_ALARM`.
+- The 5:00 alert plays the system notification sound and vibration on its own channel, and respects silent mode and Do Not Disturb.
+- `WAKE_LOCK` is allowed for Quiet Time only. Hold a partial wake lock only while the timer runs (timeout = remaining time plus a few seconds), and release it on pause, finish, cancel and 5:00.
+- Cancel discards the session at once and shows an Undo snackbar. Nothing is saved.
+- Finish early saves the session as `ENDED_EARLY`, which never counts as completed. Its minutes count toward the monthly minutes, and quiet swatches fill in proportion (minutes ÷ 5). A fully painted day needs one completed 5:00 session that started that day.
+- A session paused for 30 minutes is saved automatically as `ENDED_EARLY` and its notification is removed.
+- The ongoing notification shows the countdown and a Pause/Resume action only. Tapping it opens Quiet Time. Finish and Cancel are only in the app.
 
 ## Phone reboot or app being killed
 - Exercise: restore the session as paused, with the reps and active time from the last saved checkpoint. The user then resumes or finishes it.

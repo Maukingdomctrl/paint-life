@@ -140,7 +140,8 @@ private fun timedLabel(row: HistoryRow): String? {
         SessionStatus.COMPLETED -> stringResource(R.string.history_timed_completed, cat, DurationFormat.clockTenths(row.activeMillis))
         SessionStatus.CANCELLED -> stringResource(R.string.history_timed_stopped, cat, pluralStringResource(R.plurals.reps, row.reps, row.reps))
         SessionStatus.INCOMPLETE -> stringResource(R.string.history_timed_interrupted, cat)
-        SessionStatus.RUNNING, SessionStatus.PAUSED -> null
+        // ENDED_EARLY is quiet time only.
+        SessionStatus.RUNNING, SessionStatus.PAUSED, SessionStatus.ENDED_EARLY -> null
     }
 }
 

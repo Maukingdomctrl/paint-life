@@ -40,6 +40,7 @@ import com.mauforge.paintlife.today.CategoryMinutes
 import com.mauforge.paintlife.today.ExerciseToday
 import com.mauforge.paintlife.today.PriorityItem
 import com.mauforge.paintlife.today.QuickAction
+import com.mauforge.paintlife.today.QuietToday
 import com.mauforge.paintlife.today.TodayStripBlock
 import com.mauforge.paintlife.today.TodayUiState
 import java.time.LocalDate
@@ -69,7 +70,7 @@ object TodaySamples {
         date = SampleDay,
         dayPart = DayPart.Morning,
         exercise = ExerciseToday(reps = 0, sessions = 0),
-        quietCompletedToday = false,
+        quiet = QuietToday(completed = false, minutes = 0, fill = 0f),
         timeByCategory = emptyList(),
         priorities = emptyList(),
         strip = listOf(TodayStripBlock(0, min(7, 10), null)),
@@ -80,7 +81,7 @@ object TodaySamples {
         date = SampleDay,
         dayPart = DayPart.Afternoon,
         exercise = ExerciseToday(reps = 120, sessions = 1),
-        quietCompletedToday = false,
+        quiet = QuietToday(completed = false, minutes = 3, fill = 0.6f),
         timeByCategory = listOf(
             CategoryMinutes("Sleep", "night", 420),
             CategoryMinutes("Personal care", "sage", 45),
@@ -110,7 +111,7 @@ object TodaySamples {
         date = SampleDay,
         dayPart = DayPart.Evening,
         exercise = ExerciseToday(reps = 300, sessions = 2),
-        quietCompletedToday = true,
+        quiet = QuietToday(completed = true, minutes = 5, fill = 1f),
         timeByCategory = listOf(
             CategoryMinutes("Sleep", "night", 420),
             CategoryMinutes("Personal care", "sage", 60),
@@ -266,7 +267,11 @@ object ExerciseSamples {
 object QuietSamples {
     private val week: List<QuietDay> = (0L..6L).map { offset ->
         val date = SampleDay.minusDays(3).plusDays(offset)
-        QuietDay(date, completed = offset in setOf(0L, 1L))
+        when (offset) {
+            0L, 1L -> QuietDay(date, completed = true, minutes = 5, fill = 1f)
+            2L -> QuietDay(date, completed = false, minutes = 3, fill = 0.6f)
+            else -> QuietDay(date, completed = false)
+        }
     }
 
     val ready = QuietUiState(QuietPhase.Ready, QuietUiState.FIVE_MINUTES, week, monthCompletedSessions = 7, monthMinutes = 35)
@@ -275,7 +280,7 @@ object QuietSamples {
     val completed = ready.copy(
         phase = QuietPhase.Completed,
         remainingMillis = 0,
-        week = week.map { if (it.date == SampleDay) it.copy(completed = true) else it },
+        week = week.map { if (it.date == SampleDay) it.copy(completed = true, minutes = 5, fill = 1f) else it },
         monthCompletedSessions = 8,
         monthMinutes = 40,
     )

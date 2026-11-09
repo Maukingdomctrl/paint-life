@@ -45,10 +45,10 @@ Known deviations from the official tables:
 - `gradle/wrapper/gradle-wrapper.{jar,properties}`, `gradlew`, `gradlew.bat`
 - `app/build.gradle.kts`: SDK levels, Java 17 bytecode, release signing guard, Room schema export, Robolectric JVM flags
 - `app/proguard-rules.pro`, `keystore.properties.example`
-- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2,3}.json`: generated, checked in
+- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2,3,4}.json`: generated, checked in
 
 ### Manifest and resources (`app/src/main/`)
-- `AndroidManifest.xml`: no permissions, `allowBackup=false`
+- `AndroidManifest.xml`: `allowBackup=false`; Quiet Time permissions (`POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `WAKE_LOCK`) and `QuietTimerService` (`specialUse` with its subtype property)
 - `res/xml/data_extraction_rules.xml` (API 31+) and `res/xml/backup_rules.xml` (API 26-30): exclude everything
 - `res/values/{strings,colors,themes}.xml`: dark window theme; all UI strings and plurals
 - `res/values/cat_art_{ana,mia,zoe,eva,luna,sara,nina,maya,aria,champion}.xml`: TEMPORARY aliases of the placeholder, replaced by `res/drawable-nodpi/cat_<key>.webp` on import
@@ -59,31 +59,35 @@ Known deviations from the official tables:
 - `res/drawable/ic_nav_{today,exercise,quiet,my_time,progress}.xml`: original vector icons
 
 ### Kotlin (`app/src/main/kotlin/com/mauforge/paintlife/`)
-- `PaintLifeApplication.kt`: Hilt app; records the first-launch date; creates the exercise session controller at process start (recovery)
-- `MainActivity.kt`: edge-to-edge, light system-bar icons on the dark theme, no nav-bar scrim; checkpoints a running exercise session in `onStop`
-- `navigation/`: `Routes` (incl. the nested Exercise graph: tab, cat detail, session, result, safety, history), `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot)
+- `PaintLifeApplication.kt`: Hilt app; records the first-launch date; creates the exercise and quiet session controllers at process start (recovery)
+- `MainActivity.kt`: edge-to-edge, light system-bar icons on the dark theme, no nav-bar scrim; checkpoints running exercise and quiet sessions in `onStop`; a Quiet Time notification tap opens the Quiet tab
+- `navigation/`: `Routes` (incl. the nested Exercise graph: tab, cat detail, session, result, safety, history), `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot; opens Quiet on request)
 - `core/designsystem/theme/`: `Color` (dark palette, `CategoryPalette`), `PaintLifeColors` (extended roles, swatch rule), `Type` (fonts, `NumberStyles`), `Shape` (`ShapeTokens`), `Spacing`, `Theme` (dark only)
 - `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`, `Sheets` (`PaintLifeSheet`, `ConfirmDialog`, field colours), `Motion` (`rememberReducedMotion`)
-- `core/database/`: `PaintLifeDatabase` (v3), `Converters`, `Migrations` (`allMigrations`), `MigrationSql` (shared helpers), `Migration1To2`, `Migration2To3`, `SeedData` (+ `SeedCallback`), `SessionStatus`
-- `core/datastore/UserPreferencesRepository.kt`: first-launch date, exercise safety read, victories seen
+- `core/database/`: `PaintLifeDatabase` (v4), `Converters`, `Migrations` (`allMigrations`), `MigrationSql` (shared helpers), `Migration1To2`, `Migration2To3`, `Migration3To4`, `SeedData` (+ `SeedCallback`), `SessionStatus`
+- `core/datastore/UserPreferencesRepository.kt`: first-launch date, exercise safety read, victories seen, quiet notification permission asked
 - `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, `DayClock`, `SessionClock`, application scope
 - `core/time/`: `TimeProvider`, `DayClock` (+ `DayMoment`, `DayPart`: which day it is, across midnight, zone and DST changes), `TimerCheckpoint`, `SessionClock` (monotonic clock + boot count), `SessionTimer` (pure pause/resume/checkpoint/recovery rules), `DurationFormat`
 - `today/`: `TodayScreen` (wired: ViewModel, sheets, Undo snackbar), `TodayViewModel`, `TodayRepository` (+ `PriorityTitle`), `TodayDao`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`, `TodaySheets` (add/edit, carry-over picker)
 - `exercise/`: `ExerciseScreen` (tab, cat detail, session, result, safety and history routes), `ExerciseViewModels` (tab, cat detail, session, result, history, safety), `ExerciseSessionController` (the open session: counting, saves, checkpoints, recovery, timed finish window with Undo), `SessionCounter` (count + undo rules), `ExerciseRepository` (+ `SessionNote`, `PersonalBestKeys`; Cat League unlocks and best times), `ChallengeCompleteContent` (1,000 reps without a win), `ExerciseDao` (+ `ExerciseDayTotals`), `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState` (+ `League` mapping, result states), `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `ExerciseHistoryContent`, `ExerciseSheets` (correct count, edit session), `CatDetailContent` (+ victory)
 - `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (+ `CatArt` placeholder detection)
-- `quiet/`: `QuietScreen`, `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent`
+- `quiet/`: `QuietScreen` (wired: permission asked once, Undo snackbar, notices), `QuietViewModel`, `QuietSessionController` (the open session: timing, checkpoints, 5:00 completion, 30-minute pause limit, recovery as incomplete), `QuietTimerService` (`specialUse` foreground service, wake lock only while running, 5:00 alert), `QuietNotifications` (channels, ongoing countdown, alert), `QuietRepository`, `QuietDao`, `QuietRules` (what counts as completed, minutes, swatch fill), `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent` (+ completion bloom)
 - `mytime/`: `MyTimeScreen`, `MyTimeEntities` (ActivityCategory, TimeEntry, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ log sheet, overlap)
 - `progress/`: `ProgressScreen`, `ProgressUiState`, `ProgressContent`, `Charts` (category bars, planned vs actual, daily distribution)
 
 ### Tests (`app/src/test/`)
 - `resources/robolectric.properties`: uses a plain Application in tests
-- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 to v2 to v3, data kept)
+- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 to v2 to v3 to v4, data kept)
 - `core/datastore/UserPreferencesRepositoryTest`
 - `core/time/SessionTimerTest` (pauses excluded, checkpoints, reboot), `core/time/TimeProviderTest`, `core/time/DurationFormatTest`, `core/time/DayClockTest` (midnight, noon, zone change, DST, missed broadcast)
 - `today/TodayRepositoryTest`: max 3 (also concurrent), order, delete/restore, move, carry-over, zones, restart
 - `today/TodayViewModelTest`: midnight rollover, date-line crossing, repeated taps, undo
-- `today/TodayScreenTest`: Compose UI tests for add, complete, edit, move, delete + undo, carry-over, not-tracked swatches
-- `testing/TestTime`, `testing/FakeSessionClock`, `testing/TestAppModule` (Hilt test graph replacing `AppModule`)
+- `today/TodayScreenTest`: Compose UI tests for add, complete, edit, move, delete + undo, carry-over, quiet swatch, quick actions
+- `quiet/QuietSessionControllerTest`: exact 5:00, pauses excluded, screen-off catch-up, finish early, cancel + undo, pause limit, killed → incomplete, reboot → incomplete, incomplete never counts, midnight, zone and DST
+- `quiet/QuietRulesTest`: completed vs minutes vs incomplete, proportional fill
+- `quiet/QuietScreenTest` (+ `QuietContentTest`): Compose UI end to end, notifications-off note
+- `quiet/QuietTimerServiceTest`: foreground notification, wake lock only while running, Pause action, alert and stop at 5:00, channels
+- `testing/TestTime`, `testing/FakeSessionClock`, `testing/TestAppModule` (Hilt test graph replacing `AppModule`; `TestMonotonic` offset)
 - `core/designsystem/theme/ContrastTest`: WCAG ratios for every pairing and category colour
 - `core/designsystem/component/ComponentsTest`: touch targets, semantics, real actions
 - `exercise/SessionCounterTest`: +1/+5/+10, undo order, never below zero, corrections, reset

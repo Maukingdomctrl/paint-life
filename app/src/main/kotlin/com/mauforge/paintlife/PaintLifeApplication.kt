@@ -5,6 +5,7 @@ import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.di.ApplicationScope
 import com.mauforge.paintlife.core.time.TimeProvider
 import com.mauforge.paintlife.exercise.ExerciseSessionController
+import com.mauforge.paintlife.quiet.QuietSessionController
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -24,6 +25,12 @@ class PaintLifeApplication : Application() {
      * restarted is restored as paused straight away (see ExerciseSessionController).
      */
     @Inject lateinit var exerciseSessions: ExerciseSessionController
+
+    /**
+     * Created with the process, so a quiet session left open by a process that died (Android
+     * closed the app, or the phone restarted) is saved as incomplete straight away.
+     */
+    @Inject lateinit var quietSessions: QuietSessionController
 
     override fun onCreate() {
         super.onCreate()

@@ -1,6 +1,7 @@
 package com.mauforge.paintlife.core.designsystem.component
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,8 @@ import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
  * from a timestamp-based source, never from this composable's own timing.
  *
  * [contentDescription] is read instead of the centre content (e.g. "3 of 5 minutes").
+ * [animated] eases discrete jumps; turn it off when [progress] is redrawn many times a second (a
+ * running countdown), where an eased change would never settle.
  */
 @Composable
 fun ProgressRing(
@@ -42,10 +45,11 @@ fun ProgressRing(
     strokeWidth: Dp = 14.dp,
     color: Color = PaintLifeTheme.colors.highlight,
     trackColor: Color = PaintLifeTheme.colors.raised,
+    animated: Boolean = true,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val clamped = progress.coerceIn(0f, 1f)
-    val shown by animateFloatAsState(clamped, animationSpec = tween(durationMillis = 300), label = "ring")
+    val shown by animateFloatAsState(clamped, animationSpec = if (animated) tween(durationMillis = 300) else snap(), label = "ring")
     Box(
         modifier = modifier
             .size(size)

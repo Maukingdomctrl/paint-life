@@ -11,6 +11,13 @@ data class PriorityItem(val id: String, val title: String, val done: Boolean)
 @Immutable
 data class ExerciseToday(val reps: Int, val sessions: Int)
 
+/**
+ * Today's quiet time. [fill] paints the swatch: full with a completed 5:00 session, otherwise in
+ * proportion to the minutes (never full).
+ */
+@Immutable
+data class QuietToday(val completed: Boolean, val minutes: Int, val fill: Float)
+
 /** Minutes of one category recorded today, used to paint the Time swatch in category colours. */
 @Immutable
 data class CategoryMinutes(val categoryName: String, val colorKey: String, val minutes: Int)
@@ -45,7 +52,7 @@ data class TodayUiState(
     /** Null until Exercise is built (Iteration 4). */
     val exercise: ExerciseToday? = null,
     /** Null until Quiet Time is built (Iteration 5). */
-    val quietCompletedToday: Boolean? = null,
+    val quiet: QuietToday? = null,
     /** Null until My Time is built (Iteration 6). */
     val timeByCategory: List<CategoryMinutes>? = null,
     /** Null until My Time is built (Iteration 6); the strip is hidden until then. */

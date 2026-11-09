@@ -10,10 +10,16 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** A quiet-time session. Only [SessionStatus.COMPLETED] with full target time counts as done. */
+/**
+ * A quiet-time session. Only [SessionStatus.COMPLETED] with the full target time counts as done
+ * ([QuietRules.countsAsCompleted]); [SessionStatus.ENDED_EARLY] keeps its minutes, and
+ * [SessionStatus.INCOMPLETE] (app killed or phone restarted) never counts.
+ *
+ * Every instant is stored with the zone it was recorded in.
+ */
 @Entity(
     tableName = "quiet_session",
-    indices = [Index(value = ["startDate"]), Index(value = ["status"])],
+    indices = [Index(value = ["startDate"]), Index(value = ["startedAt"]), Index(value = ["status"])],
 )
 data class QuietSessionEntity(
     @PrimaryKey val id: String,
@@ -22,8 +28,21 @@ data class QuietSessionEntity(
     val zoneId: ZoneId,
     /** Local date at [startedAt] in [zoneId]; a session counts on the day it started. */
     val startDate: LocalDate,
+    /** For a completed session, the moment it reached the target time. */
     val endedAt: Instant?,
+    val endedZoneId: ZoneId?,
     val targetDurationMillis: Long,
     @Embedded val timer: TimerCheckpoint,
     val updatedAt: Instant,
+    val updatedZoneId: ZoneId,
+) {
+    val isOpen: Boolean get() = status == SessionStatus.RUNNING || status == SessionStatus.PAUSED
+}
+
+/** The fields the history and totals need from one finished session. */
+data class QuietSessionSummary(
+    val startDate: LocalDate,
+    val status: SessionStatus,
+    val activeDurationMillis: Long,
+    val targetDurationMillis: Long,
 )

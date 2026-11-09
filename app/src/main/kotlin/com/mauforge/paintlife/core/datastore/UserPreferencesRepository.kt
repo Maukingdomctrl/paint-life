@@ -62,9 +62,17 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    /** True once Quiet Time has asked for the notification permission; it never asks again. */
+    val quietNotificationsAsked: Flow<Boolean> = data.map { prefs -> prefs[QUIET_NOTIFICATIONS_ASKED] == true }
+
+    suspend fun markQuietNotificationsAsked() {
+        dataStore.edit { prefs -> prefs[QUIET_NOTIFICATIONS_ASKED] = true }
+    }
+
     private companion object {
         val FIRST_LAUNCH_DATE = stringPreferencesKey("first_launch_date")
         val EXERCISE_SAFETY_READ = booleanPreferencesKey("exercise_safety_read")
         val VICTORY_SEEN_UP_TO = longPreferencesKey("victory_seen_up_to")
+        val QUIET_NOTIFICATIONS_ASKED = booleanPreferencesKey("quiet_notifications_asked")
     }
 }

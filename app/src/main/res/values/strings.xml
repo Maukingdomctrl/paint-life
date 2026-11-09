@@ -18,7 +18,6 @@
     <string name="not_built_badge">Not built yet</string>
     <string name="coming_in_iteration">Coming in Iteration %1$d</string>
     <string name="not_built_note">Nothing on this screen is recorded or calculated yet.</string>
-    <string name="coming_quiet">The five-minute quiet timer, with daily, weekly and monthly history.</string>
     <string name="coming_my_time">A 24-hour timeline for recording where your day actually goes.</string>
     <string name="coming_progress">Reports for today, the last seven days, this month and last month.</string>
 
@@ -282,6 +281,22 @@
     <string name="quiet_day_not_done">no quiet time recorded</string>
     <string name="quiet_month_minutes">This month</string>
     <string name="quiet_month_sessions">Full sessions this month</string>
+    <string name="quiet_day_minutes">%1$d min of quiet, not a full session</string>
+    <string name="quiet_notifications_off">Notifications are off, so there\'s no alert at 5:00 while the screen is off. The timer still counts.</string>
+    <string name="action_turn_on_notifications">Turn on notifications</string>
+    <string name="quiet_cancelled">Quiet session cancelled</string>
+    <string name="quiet_notice_restore_failed">Couldn\'t bring it back. Another session has started.</string>
+    <string name="quiet_notice_ended_early">Saved %1$s of quiet. Shorter sessions still add to your minutes.</string>
+    <string name="quiet_notice_nothing_saved">Nothing to save yet.</string>
+    <string name="quiet_channel_running">Quiet Time in progress</string>
+    <string name="quiet_channel_running_description">Shows the countdown while a quiet session is open.</string>
+    <string name="quiet_channel_finished">Quiet Time finished</string>
+    <string name="quiet_channel_finished_description">Lets you know when five quiet minutes are up. Follows your silent and Do Not Disturb settings.</string>
+    <string name="quiet_notification_running">Quiet time in progress</string>
+    <string name="quiet_notification_paused">Paused · %1$s left</string>
+    <string name="quiet_notification_done_title">Five quiet minutes, done</string>
+    <string name="quiet_notification_done_text">Tap to see your week.</string>
+    <string name="today_quiet_minutes">%1$d min</string>
 
     <!-- My Time -->
     <string name="my_time_previous_day">Previous day</string>

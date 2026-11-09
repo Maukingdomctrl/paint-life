@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +39,12 @@ import com.mauforge.paintlife.debug.DebugMenu
 fun PaintLifeAppShell(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
+    openQuietRequest: Int = 0,
 ) {
+    // Each new request (a tap on a Quiet Time notification) switches to the Quiet tab once.
+    LaunchedEffect(openQuietRequest) {
+        if (openQuietRequest > 0) navController.navigateToTopLevel(TopLevelDestination.QUIET)
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val colors = PaintLifeTheme.colors

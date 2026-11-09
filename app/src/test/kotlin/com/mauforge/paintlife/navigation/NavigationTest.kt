@@ -1,6 +1,7 @@
 package com.mauforge.paintlife.navigation
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
@@ -14,8 +15,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.mauforge.paintlife.MainActivity
 import com.mauforge.paintlife.R
+import com.mauforge.paintlife.quiet.QuietNotifications
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
@@ -41,7 +44,6 @@ class NavigationTest {
 
     /** Iteration that delivers each destination still showing its placeholder. */
     private val deliveredIn = mapOf(
-        TopLevelDestination.QUIET to 5,
         TopLevelDestination.MY_TIME to 6,
         TopLevelDestination.PROGRESS to 7,
     )
@@ -68,6 +70,26 @@ class NavigationTest {
             composeRule.onNodeWithText(comingIn(iteration)).assertIsDisplayed()
             composeRule.onNodeWithText(context.getString(R.string.not_built_badge)).assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun quietTabShowsTheRealTimer() {
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.QUIET)).performClick()
+        waitForTag("quiet_content")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.QUIET)).assertIsSelected()
+        composeRule.onNodeWithText(context.getString(R.string.quiet_subtitle_ready)).assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun aQuietNotificationTapOpensTheQuietTab() {
+        waitForToday()
+        composeRule.runOnUiThread {
+            val intent = Intent(context, MainActivity::class.java).putExtra(QuietNotifications.EXTRA_OPEN_QUIET, true)
+            InstrumentationRegistry.getInstrumentation().callActivityOnNewIntent(composeRule.activity, intent)
+        }
+        waitForTag("quiet_content")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.QUIET)).assertIsSelected()
     }
 
     @Test

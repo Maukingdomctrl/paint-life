@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- No permissions yet. POST_NOTIFICATIONS and foreground-service permissions arrive with Quiet Time (Iteration 5). -->
+    <!-- Quiet Time only (see CLAUDE.md). POST_NOTIFICATIONS is asked for when a session first starts (API 33+). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Held only while the quiet timer runs, so the 5:00 alert is on time with the screen off. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Auto Backup is off: data leaves the device only through manual JSON export. -->
     <application
@@ -24,6 +29,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The five-minute quiet timer. No other foreground service type fits (shortService
+             allows about 3 minutes); specialUse needs the explanation below. -->
+        <service
+            android:name=".quiet.QuietTimerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started five-minute quiet-time (meditation) countdown. Keeps the timer and its ongoing notification running while the screen is off, and alerts when the five minutes are up. Stops when the session ends." />
+        </service>
     </application>
 
 </manifest>
