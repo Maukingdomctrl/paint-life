@@ -3,12 +3,14 @@ package com.mauforge.paintlife.navigation
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.MainActivity
@@ -38,7 +40,6 @@ class NavigationTest {
 
     /** Iteration that delivers each destination still showing its placeholder. */
     private val deliveredIn = mapOf(
-        TopLevelDestination.EXERCISE to 4,
         TopLevelDestination.QUIET to 5,
         TopLevelDestination.MY_TIME to 6,
         TopLevelDestination.PROGRESS to 7,
@@ -66,6 +67,39 @@ class NavigationTest {
             composeRule.onNodeWithText(comingIn(iteration)).assertIsDisplayed()
             composeRule.onNodeWithText(context.getString(R.string.not_built_badge)).assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun exerciseTabIsTheRealScreenAndSaysTheLeagueIsNotWiredYet() {
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).performClick()
+        waitForTag("exercise_content")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).assertIsSelected()
+        composeRule.onNodeWithText(context.getString(R.string.volume_lifetime)).assertIsDisplayed()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasTestTag("league_coming"))
+        composeRule.onNodeWithTag("league_coming").assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun theCounterKeepsTheExerciseTabSelectedAndBackReturnsToTheTab() {
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).performClick()
+        waitForTag("exercise_content")
+        composeRule.onNodeWithText(context.getString(R.string.action_start_session)).performClick()
+        // First session ever: the safety guidance comes first.
+        waitForTag("safety_guidance")
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(context.getString(R.string.safety_done)))
+        composeRule.onNodeWithText(context.getString(R.string.safety_done)).performClick()
+        waitForTag("exercise_session")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).assertIsSelected()
+
+        composeRule.runOnUiThread { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+
+        waitForTag("exercise_content")
+        composeRule.onNodeWithText(context.getString(R.string.session_open_running)).assertIsDisplayed()
+    }
+
+    private fun waitForTag(tag: String) {
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
     }
 
     @Test

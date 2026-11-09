@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.DayMoment
+import com.mauforge.paintlife.exercise.ExerciseDayTotals
+import com.mauforge.paintlife.exercise.ExerciseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +31,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val repository: TodayRepository,
+    private val exercise: ExerciseRepository,
     dayClock: DayClock,
 ) : ViewModel() {
 
@@ -46,7 +49,12 @@ class TodayViewModel @Inject constructor(
         val notice: TodayNotice? = null,
     )
 
-    private data class DayData(val date: LocalDate, val priorities: List<PriorityEntity>, val offer: CarryOverOffer?)
+    private data class DayData(
+        val date: LocalDate,
+        val priorities: List<PriorityEntity>,
+        val offer: CarryOverOffer?,
+        val exercise: ExerciseDayTotals,
+    )
 
     private val local = MutableStateFlow(Local())
     private var deleted: PriorityEntity? = null
@@ -56,8 +64,12 @@ class TodayViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val dayData = moment.map { it.date }.distinctUntilChanged().flatMapLatest { date ->
-        combine(repository.observePriorities(date), repository.observeCarryOver(date)) { priorities, offer ->
-            DayData(date, priorities, offer)
+        combine(
+            repository.observePriorities(date),
+            repository.observeCarryOver(date),
+            exercise.observeDayTotals(date),
+        ) { priorities, offer, exerciseTotals ->
+            DayData(date, priorities, offer, exerciseTotals)
         }
     }
 
@@ -79,6 +91,9 @@ class TodayViewModel @Inject constructor(
                     freePlaces = freePlaces,
                 )
             },
+            // A session counts on the day it started (open sessions included).
+            exercise = ExerciseToday(reps = data.exercise.reps, sessions = data.exercise.sessions),
+            quickActions = listOf(QuickAction.StartExercise),
         )
         val editor = when (val editor = local.editor) {
             null -> null

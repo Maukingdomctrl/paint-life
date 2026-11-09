@@ -45,7 +45,7 @@ Known deviations from the official tables:
 - `gradle/wrapper/gradle-wrapper.{jar,properties}`, `gradlew`, `gradlew.bat`
 - `app/build.gradle.kts`: SDK levels, Java 17 bytecode, release signing guard, Room schema export, Robolectric JVM flags
 - `app/proguard-rules.pro`, `keystore.properties.example`
-- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2}.json`: generated, checked in
+- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2,3}.json`: generated, checked in
 
 ### Manifest and resources (`app/src/main/`)
 - `AndroidManifest.xml`: no permissions, `allowBackup=false`
@@ -59,17 +59,17 @@ Known deviations from the official tables:
 - `res/drawable/ic_nav_{today,exercise,quiet,my_time,progress}.xml`: original vector icons
 
 ### Kotlin (`app/src/main/kotlin/com/mauforge/paintlife/`)
-- `PaintLifeApplication.kt`: Hilt app; records the first-launch date
-- `MainActivity.kt`: edge-to-edge, light system-bar icons on the dark theme, no nav-bar scrim
-- `navigation/`: `Routes`, `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot)
+- `PaintLifeApplication.kt`: Hilt app; records the first-launch date; creates the exercise session controller at process start (recovery)
+- `MainActivity.kt`: edge-to-edge, light system-bar icons on the dark theme, no nav-bar scrim; checkpoints a running exercise session in `onStop`
+- `navigation/`: `Routes` (incl. the nested Exercise graph: tab, session, safety, history), `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot)
 - `core/designsystem/theme/`: `Color` (dark palette, `CategoryPalette`), `PaintLifeColors` (extended roles, swatch rule), `Type` (fonts, `NumberStyles`), `Shape` (`ShapeTokens`), `Spacing`, `Theme` (dark only)
-- `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`
-- `core/database/`: `PaintLifeDatabase` (v2), `Converters`, `Migrations` (`allMigrations`), `Migration1To2`, `SeedData` (+ `SeedCallback`), `SessionStatus`
-- `core/datastore/UserPreferencesRepository.kt`
-- `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, `DayClock`, application scope
-- `core/time/`: `TimeProvider`, `DayClock` (+ `DayMoment`, `DayPart`: which day it is, across midnight, zone and DST changes), `TimerCheckpoint`, `DurationFormat`
+- `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`, `Sheets` (`PaintLifeSheet`, `ConfirmDialog`, field colours)
+- `core/database/`: `PaintLifeDatabase` (v3), `Converters`, `Migrations` (`allMigrations`), `MigrationSql` (shared helpers), `Migration1To2`, `Migration2To3`, `SeedData` (+ `SeedCallback`), `SessionStatus`
+- `core/datastore/UserPreferencesRepository.kt`: first-launch date, exercise safety read
+- `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, `DayClock`, `SessionClock`, application scope
+- `core/time/`: `TimeProvider`, `DayClock` (+ `DayMoment`, `DayPart`: which day it is, across midnight, zone and DST changes), `TimerCheckpoint`, `SessionClock` (monotonic clock + boot count), `SessionTimer` (pure pause/resume/checkpoint/recovery rules), `DurationFormat`
 - `today/`: `TodayScreen` (wired: ViewModel, sheets, Undo snackbar), `TodayViewModel`, `TodayRepository` (+ `PriorityTitle`), `TodayDao`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`, `TodaySheets` (add/edit, carry-over picker)
-- `exercise/`: `ExerciseScreen`, `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState`, `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `CatDetailContent` (+ victory)
+- `exercise/`: `ExerciseScreen` (tab, session, safety and history routes), `ExerciseViewModels` (tab, session, history, safety), `ExerciseSessionController` (the open session: counting, saves, checkpoints, recovery), `SessionCounter` (count + undo rules), `ExerciseRepository` (+ `SessionNote`), `ExerciseDao` (+ `ExerciseDayTotals`), `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState`, `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `ExerciseHistoryContent`, `ExerciseSheets` (correct count, edit session), `CatDetailContent` (+ victory)
 - `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (+ `CatArt` placeholder detection)
 - `quiet/`: `QuietScreen`, `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent`
 - `mytime/`: `MyTimeScreen`, `MyTimeEntities` (ActivityCategory, TimeEntry, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ log sheet, overlap)
@@ -77,15 +77,19 @@ Known deviations from the official tables:
 
 ### Tests (`app/src/test/`)
 - `resources/robolectric.properties`: uses a plain Application in tests
-- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 to v2, data kept)
+- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 to v2 to v3, data kept)
 - `core/datastore/UserPreferencesRepositoryTest`
-- `core/time/TimeProviderTest`, `core/time/DurationFormatTest`, `core/time/DayClockTest` (midnight, noon, zone change, DST, missed broadcast)
+- `core/time/SessionTimerTest` (pauses excluded, checkpoints, reboot), `core/time/TimeProviderTest`, `core/time/DurationFormatTest`, `core/time/DayClockTest` (midnight, noon, zone change, DST, missed broadcast)
 - `today/TodayRepositoryTest`: max 3 (also concurrent), order, delete/restore, move, carry-over, zones, restart
 - `today/TodayViewModelTest`: midnight rollover, date-line crossing, repeated taps, undo
 - `today/TodayScreenTest`: Compose UI tests for add, complete, edit, move, delete + undo, carry-over, not-tracked swatches
-- `testing/TestTime`, `testing/TestAppModule` (Hilt test graph replacing `AppModule`)
+- `testing/TestTime`, `testing/FakeSessionClock`, `testing/TestAppModule` (Hilt test graph replacing `AppModule`)
 - `core/designsystem/theme/ContrastTest`: WCAG ratios for every pairing and category colour
 - `core/designsystem/component/ComponentsTest`: touch targets, semantics, real actions
+- `exercise/SessionCounterTest`: +1/+5/+10, undo order, never below zero, corrections, reset
+- `exercise/ExerciseSessionControllerTest`: real database file; restart and reboot recovery, pause/resume timing, one open session, discard, lifetime totals
+- `exercise/ExerciseRepositoryTest`: midnight and zone changes, history edits and deletes, timed results read-only
+- `exercise/ExerciseSessionScreenTest`, `exercise/ExerciseHistoryScreenTest`: Compose UI end to end
 - `exercise/cats/CatRosterTest`: roster vs seed data, names, placeholder slots
 - `mytime/TimelineGeometryTest`: midnight split, DST 23/25-hour days, gaps
 - `debug/ScreenLayoutsTest`: every gallery sample at 200% text on 320dp, plus layout rules

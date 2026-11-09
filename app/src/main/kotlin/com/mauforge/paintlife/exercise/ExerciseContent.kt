@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -36,15 +38,20 @@ import com.mauforge.paintlife.core.designsystem.component.SecondaryButton
 import com.mauforge.paintlife.core.designsystem.component.SectionHeader
 import com.mauforge.paintlife.core.designsystem.component.Tray
 import com.mauforge.paintlife.core.designsystem.component.TrayDivider
+import com.mauforge.paintlife.core.designsystem.component.currentLocale
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.core.time.DurationFormat
 import com.mauforge.paintlife.exercise.cats.CatAvatar
 import com.mauforge.paintlife.exercise.cats.CatAvatarSize
 import java.text.NumberFormat
+import java.time.format.DateTimeFormatter
 
 /**
  * Exercise tab: the volume goal, an open session if there is one, safety guidance, and the
- * Paint Life Cat League. Timed challenges are always optional. Stateless; wired in Iteration 4.
+ * Paint Life Cat League. Timed challenges are always optional. Stateless.
+ *
+ * Until the league is wired ([ExerciseUiState.leagueReady] false) the tab says so in place of
+ * the ladder, rather than showing controls that do nothing.
  */
 @Composable
 fun ExerciseContent(
@@ -54,6 +61,7 @@ fun ExerciseContent(
     onStartTimedChallenge: (level: Int) -> Unit,
     onOpenCat: (level: Int) -> Unit,
     onOpenSafety: () -> Unit,
+    onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PaintLifeScreen(modifier = modifier.testTag("exercise_content")) {
@@ -69,6 +77,13 @@ fun ExerciseContent(
         }
         item(key = "volume") { VolumePanel(state, showStart = state.activeSession == null, onStartSession = onStartSession) }
         item(key = "safety") { SafetyCard(expanded = !state.hasReadSafety, onOpenSafety = onOpenSafety) }
+        item(key = "history") {
+            QuietButton(text = stringResource(R.string.history_open), onClick = onOpenHistory, icon = painterResource(R.drawable.ic_chevron_right))
+        }
+        if (!state.leagueReady) {
+            item(key = "league_coming") { LeagueComingCard() }
+            return@PaintLifeScreen
+        }
         item(key = "league_title") {
             SectionHeader(
                 title = stringResource(R.string.league_title),
@@ -116,8 +131,17 @@ private fun ActiveSessionCard(session: ActiveSessionSummary, onResume: () -> Uni
                 DurationFormat.clock(session.activeMillis),
             ),
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = PaintLifeTheme.spacing.xs, bottom = PaintLifeTheme.spacing.lg),
+            modifier = Modifier.padding(top = PaintLifeTheme.spacing.xs),
         )
+        session.startedOn?.let { date ->
+            Text(
+                text = stringResource(R.string.session_open_started, date.format(DateTimeFormatter.ofPattern("EEEE d MMMM", currentLocale()))),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = PaintLifeTheme.spacing.xxs),
+            )
+        }
+        Spacer(Modifier.height(PaintLifeTheme.spacing.lg))
         PrimaryButton(text = stringResource(R.string.action_resume_session), onClick = onResume, modifier = Modifier.fillMaxWidth())
     }
 }
@@ -236,6 +260,19 @@ private fun CurrentOpponent(entry: LeagueEntry, canStart: Boolean, onStart: () -
             style = MaterialTheme.typography.bodySmall,
             color = colors.textSecondary,
             modifier = Modifier.padding(top = spacing.sm),
+        )
+    }
+}
+
+@Composable
+private fun LeagueComingCard() {
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("league_coming")) {
+        Text(text = stringResource(R.string.league_title), style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = stringResource(R.string.league_coming_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = PaintLifeTheme.colors.textSecondary,
+            modifier = Modifier.padding(top = PaintLifeTheme.spacing.xs),
         )
     }
 }

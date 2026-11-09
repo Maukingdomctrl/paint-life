@@ -13,4 +13,5 @@ import java.time.ZoneId
  */
 fun allMigrations(zone: () -> ZoneId): Array<Migration> = arrayOf(
     Migration1To2(zone),
+    Migration2To3(zone),
 )

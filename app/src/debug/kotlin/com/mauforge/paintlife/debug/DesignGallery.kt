@@ -48,7 +48,11 @@ import com.mauforge.paintlife.core.designsystem.component.Tray
 import com.mauforge.paintlife.core.designsystem.component.TrayDivider
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.exercise.CatDetailContent
+import com.mauforge.paintlife.exercise.CorrectCountBody
 import com.mauforge.paintlife.exercise.ExerciseContent
+import com.mauforge.paintlife.exercise.ExerciseHistoryContent
+import com.mauforge.paintlife.exercise.ExerciseHistoryUiState
+import com.mauforge.paintlife.exercise.HistoryEditorBody
 import com.mauforge.paintlife.exercise.ExerciseSessionContent
 import com.mauforge.paintlife.exercise.ExerciseSessionUiState
 import com.mauforge.paintlife.exercise.ExerciseUiState
@@ -90,7 +94,16 @@ private fun today(id: String, title: String, state: TodayUiState) = GalleryEntry
 }
 
 private fun exercise(id: String, title: String, state: ExerciseUiState) = GalleryEntry(id, "Exercise", title) {
-    ExerciseContent(state, {}, {}, {}, {}, {})
+    ExerciseContent(state, {}, {}, {}, {}, {}, {})
+}
+
+private fun history(id: String, title: String, state: ExerciseHistoryUiState) = GalleryEntry(id, "Exercise", title) {
+    ExerciseHistoryContent(state, onOpenSession = {})
+}
+
+/** A sheet body shown as a screen, so it can be reviewed without opening the sheet. */
+private fun sheet(id: String, title: String, body: @Composable () -> Unit) = GalleryEntry(id, "Exercise", title) {
+    PaintLifeScreen { item { body() } }
 }
 
 private fun session(id: String, title: String, state: ExerciseSessionUiState) = GalleryEntry(id, "Exercise", title) {
@@ -135,6 +148,8 @@ val galleryEntries: List<GalleryEntry> = listOf(
     exercise("exercise_midway", "Two cats beaten", ExerciseSamples.midway),
     exercise("exercise_restored", "Session restored after closing", ExerciseSamples.restoredSession),
     exercise("exercise_all", "All cats beaten", ExerciseSamples.allBeaten),
+    exercise("exercise_league_coming", "Iteration 4a: league not wired yet", ExerciseSamples.leagueComing),
+    exercise("exercise_restored_overnight", "Session restored from yesterday", ExerciseSamples.restoredOvernight),
     session("session_volume", "Counter, running", ExerciseSamples.volumeRunning),
     session("session_volume_paused", "Counter, paused", ExerciseSamples.volumePaused),
     session("session_timed", "Timed challenge, running", ExerciseSamples.timedRunning),
@@ -145,6 +160,13 @@ val galleryEntries: List<GalleryEntry> = listOf(
     victory("victory", "Victory", ExerciseSamples.victory),
     victory("victory_champion", "Victory over Champion", ExerciseSamples.victoryChampion),
     GalleryEntry("safety", "Exercise", "Safety guidance") { SafetyGuidanceContent(onDone = {}) },
+    sheet("correct_count", "Correct count sheet") { CorrectCountBody(currentReps = 120, onSave = {}) },
+    history("history", "Session history", ExerciseSamples.history),
+    history("history_empty", "Session history, empty", ExerciseSamples.historyEmpty),
+    sheet("history_editor", "Edit session sheet") { HistoryEditorBody(ExerciseSamples.historyEditor, { _, _ -> }, {}, {}) },
+    sheet("history_editor_timed", "Edit timed session sheet") {
+        HistoryEditorBody(ExerciseSamples.historyEditor.copy(canEditReps = false, canDelete = false), { _, _ -> }, {}, {})
+    },
     quiet("quiet_ready", "Ready", QuietSamples.ready),
     quiet("quiet_running", "Running", QuietSamples.running),
     quiet("quiet_paused", "Paused", QuietSamples.paused),

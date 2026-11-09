@@ -2,6 +2,10 @@ package com.mauforge.paintlife.debug
 
 import com.mauforge.paintlife.core.database.SeedData
 import com.mauforge.paintlife.exercise.ActiveSessionSummary
+import com.mauforge.paintlife.exercise.ExerciseHistoryUiState
+import com.mauforge.paintlife.exercise.HistoryDay
+import com.mauforge.paintlife.exercise.HistoryEditorUi
+import com.mauforge.paintlife.exercise.HistoryRow
 import com.mauforge.paintlife.exercise.ExerciseSessionType
 import com.mauforge.paintlife.exercise.ExerciseSessionUiState
 import com.mauforge.paintlife.exercise.ExerciseUiState
@@ -190,6 +194,56 @@ object ExerciseSamples {
         opponent = midway.league[2],
     )
     val timedPaused = timedRunning.copy(isPaused = true, elapsedMillis = minutes(19, 5))
+
+    /** What release builds show in Part 4a: real volume, the league not wired yet. */
+    val leagueComing = ExerciseUiState(lifetimeReps = 215, league = emptyList(), activeSession = null, hasReadSafety = true, leagueReady = false)
+
+    /** A session left open last night, restored as paused. */
+    val restoredOvernight = leagueComing.copy(
+        activeSession = ActiveSessionSummary(
+            ExerciseSessionType.VOLUME,
+            reps = 40,
+            activeMillis = minutes(3, 5),
+            isPaused = true,
+            opponentLevel = null,
+            startedOn = LocalDate.of(2026, 11, 8),
+        ),
+    )
+
+    private val historyToday = LocalDate.of(2026, 11, 9)
+
+    val history = ExerciseHistoryUiState(
+        today = historyToday,
+        days = listOf(
+            HistoryDay(
+                historyToday,
+                listOf(
+                    HistoryRow("h1", ExerciseSessionType.VOLUME, LocalTime.of(18, 40), 120, minutes(11, 2), "Felt easy, longer next time."),
+                    HistoryRow("h2", ExerciseSessionType.VOLUME, LocalTime.of(7, 15), 60, minutes(5, 30), null),
+                ),
+            ),
+            HistoryDay(
+                historyToday.minusDays(1),
+                listOf(HistoryRow("h3", ExerciseSessionType.VOLUME, LocalTime.of(23, 50), 85, minutes(9, 12), "Ran past midnight; counts on the day it started.")),
+            ),
+            HistoryDay(
+                historyToday.minusDays(5),
+                listOf(HistoryRow("h4", ExerciseSessionType.VOLUME, LocalTime.of(17, 5), 1, minutes(0, 20), null)),
+            ),
+        ),
+    )
+
+    val historyEmpty = ExerciseHistoryUiState(today = historyToday, days = emptyList())
+
+    val historyEditor = HistoryEditorUi(
+        id = "h1",
+        date = historyToday,
+        startTime = LocalTime.of(18, 40),
+        reps = 120,
+        note = "Felt easy, longer next time.",
+        canEditReps = true,
+        canDelete = true,
+    )
 
     val catLocked = midway.league[3]
     val catCurrent = midway.league[2]

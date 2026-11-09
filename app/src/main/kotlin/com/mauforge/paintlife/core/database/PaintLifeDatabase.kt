@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.mauforge.paintlife.exercise.ChallengeLevelEntity
+import com.mauforge.paintlife.exercise.ExerciseDao
 import com.mauforge.paintlife.exercise.ExerciseSessionEntity
 import com.mauforge.paintlife.exercise.PersonalBestEntity
 import com.mauforge.paintlife.mytime.ActivityCategoryEntity
@@ -24,6 +25,9 @@ import java.time.ZoneId
  *
  * Version 2 (Iteration 3): zone ids beside every priority and daily-record timestamp, unique
  * (date, position) and (date, carriedFromId) on priorities, and the carry-over dismissal flag.
+ *
+ * Version 3 (Iteration 4): zone ids beside exercise end/update and level unlock/beat instants,
+ * and an index on exercise_session.startedAt.
  */
 @Database(
     entities = [
@@ -38,13 +42,15 @@ import java.time.ZoneId
         DailyScheduleEntity::class,
         ScheduleBlockEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class PaintLifeDatabase : RoomDatabase() {
 
     abstract fun todayDao(): TodayDao
+
+    abstract fun exerciseDao(): ExerciseDao
 
     companion object {
         const val NAME = "paint_life.db"

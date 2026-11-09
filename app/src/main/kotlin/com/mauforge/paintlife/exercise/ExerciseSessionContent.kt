@@ -142,7 +142,7 @@ fun ExerciseSessionContent(
                         label = null,
                         description = stringResource(R.string.session_undo),
                         onClick = onUndo,
-                        enabled = state.reps > 0,
+                        enabled = state.canUndo,
                         modifier = Modifier.weight(1f),
                     )
                 }

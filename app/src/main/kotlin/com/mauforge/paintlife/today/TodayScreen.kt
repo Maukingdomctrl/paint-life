@@ -24,6 +24,7 @@ import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 
 @Composable
 fun TodayScreen(
+    onStartExercise: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel(),
 ) {
@@ -43,8 +44,13 @@ fun TodayScreen(
                 onAddPriority = viewModel::openNewPriority,
                 onReviewCarryOver = viewModel::openCarryOver,
                 onDismissCarryOver = viewModel::dismissCarryOver,
-                // No quick action is offered until the feature it opens is built.
-                onQuickAction = {},
+                // Only actions whose feature is built are offered (see TodayViewModel).
+                onQuickAction = { action ->
+                    when (action) {
+                        QuickAction.StartExercise -> onStartExercise()
+                        QuickAction.QuietTime, QuickAction.LogTime -> Unit
+                    }
+                },
             )
         }
         SnackbarHost(

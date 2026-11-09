@@ -31,8 +31,10 @@ data class ChallengeLevelEntity(
     val benchmarkMillis: Long,
     val isUnlocked: Boolean,
     val unlockedAt: Instant?,
+    val unlockedZoneId: ZoneId?,
     /** When the user first finished 1,000 repetitions strictly faster than [benchmarkMillis]. */
     val beatenAt: Instant?,
+    val beatenZoneId: ZoneId?,
 )
 
 @Entity(
@@ -45,7 +47,12 @@ data class ChallengeLevelEntity(
             onDelete = ForeignKey.RESTRICT,
         ),
     ],
-    indices = [Index(value = ["startDate"]), Index(value = ["status"]), Index(value = ["challengeLevel"])],
+    indices = [
+        Index(value = ["startDate"]),
+        Index(value = ["startedAt"]),
+        Index(value = ["status"]),
+        Index(value = ["challengeLevel"]),
+    ],
 )
 data class ExerciseSessionEntity(
     @PrimaryKey val id: String,
@@ -58,11 +65,15 @@ data class ExerciseSessionEntity(
     /** Local date at [startedAt] in [zoneId]; a session counts on the day it started. */
     val startDate: LocalDate,
     val endedAt: Instant?,
+    val endedZoneId: ZoneId?,
     val repetitions: Int,
     @Embedded val timer: TimerCheckpoint,
     val notes: String?,
     val updatedAt: Instant,
-)
+    val updatedZoneId: ZoneId,
+) {
+    val isOpen: Boolean get() = status == SessionStatus.RUNNING || status == SessionStatus.PAUSED
+}
 
 /** Stored by name; never rename without a migration. */
 enum class PersonalBestKind {

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
@@ -24,6 +25,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.R
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
+import com.mauforge.paintlife.exercise.ExerciseRepository
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.testing.TestTime
 import kotlinx.coroutines.flow.first
@@ -49,6 +51,7 @@ class TodayScreenTest {
     private val time = TestTime(day.atTime(9, 0), ZoneId.of("Asia/Kolkata"))
     private lateinit var db: PaintLifeDatabase
     private lateinit var repository: TodayRepository
+    private var exerciseOpened = 0
 
     @Before
     fun setUp() {
@@ -62,8 +65,8 @@ class TodayScreenTest {
     }
 
     private fun show() {
-        val viewModel = TodayViewModel(repository, time.dayClock)
-        composeRule.setContent { PaintLifeTheme { TodayScreen(viewModel = viewModel) } }
+        val viewModel = TodayViewModel(repository, ExerciseRepository(db, time.provider), time.dayClock)
+        composeRule.setContent { PaintLifeTheme { TodayScreen(onStartExercise = { exerciseOpened++ }, viewModel = viewModel) } }
     }
 
     private fun string(id: Int, vararg args: Any): String = context.getString(id, *args)
@@ -202,19 +205,25 @@ class TodayScreenTest {
     }
 
     @Test
-    fun otherAreasSayNotTrackedYetAndNoDeadButtonsAreShown() {
+    fun unbuiltAreasSayNotTrackedYetAndOnlyTheExerciseActionIsOffered() {
         show()
         waitFor(hasTestTag("today_content"))
 
         listOf("swatch_exercise", "swatch_quiet", "swatch_time").forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
-        assertEquals(3, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
+        // Exercise is tracked now; quiet time and time are not yet.
+        assertEquals(2, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
         // Scroll to the end so every section that exists has been composed.
-        scrollTo(hasText(string(R.string.today_priorities_empty_title)))
-        listOf(R.string.today_quick_actions, R.string.today_so_far, R.string.action_log_time).forEach {
+        val exerciseAction = hasText(string(R.string.action_start_exercise)) and hasClickAction()
+        scrollTo(exerciseAction)
+        listOf(R.string.today_so_far, R.string.action_log_time).forEach {
             assertEquals(string(it), 0, composeRule.onAllNodes(hasText(string(it)), useUnmergedTree = true).fetchSemanticsNodes().size)
         }
+
+        composeRule.onNode(exerciseAction).performClick()
+        composeRule.waitForIdle()
+        assertEquals(1, exerciseOpened)
     }
 
     @Test

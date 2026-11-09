@@ -93,7 +93,7 @@ fun PaintLifeAppShell(
 }
 
 /** Switches tabs keeping one copy of each, restoring its state; Back returns to Today. */
-private fun NavHostController.navigateToTopLevel(destination: TopLevelDestination) {
+internal fun NavHostController.navigateToTopLevel(destination: TopLevelDestination) {
     navigate(destination.route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true

@@ -5,7 +5,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
+import com.mauforge.paintlife.exercise.ExerciseRepository
 import com.mauforge.paintlife.core.time.DayPart
+import com.mauforge.paintlife.core.time.SessionTimer
 import com.mauforge.paintlife.testing.TestTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +56,7 @@ class TodayViewModelTest {
         Dispatchers.setMain(main)
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), PaintLifeDatabase::class.java).build()
         repository = TodayRepository(db, time.provider)
-        viewModel = TodayViewModel(repository, time.dayClock)
+        viewModel = TodayViewModel(repository, ExerciseRepository(db, time.provider), time.dayClock)
         // The screen collects state while visible; do the same here.
         collector = CoroutineScope(main).launch { viewModel.state.collect { } }
     }
@@ -87,13 +89,13 @@ class TodayViewModelTest {
     }
 
     @Test
-    fun otherAreasAreNotTrackedYetAndOfferNoQuickActions() {
+    fun exerciseIsTrackedOtherAreasAreNotYetAndOnlyExerciseIsOffered() {
         val content = awaitState { it.content != null }.content!!
-        assertNull(content.exercise)
+        assertEquals(ExerciseToday(reps = 0, sessions = 0), content.exercise)
         assertNull(content.quietCompletedToday)
         assertNull(content.timeByCategory)
         assertNull(content.strip)
-        assertEquals(emptyList<QuickAction>(), content.quickActions)
+        assertEquals(listOf(QuickAction.StartExercise), content.quickActions)
     }
 
     @Test
@@ -224,5 +226,26 @@ class TodayViewModelTest {
         awaitState { it.content?.carryOver != null }
         onMain { viewModel.dismissCarryOver() }
         awaitState { it.content != null && it.content.carryOver == null }
+    }
+
+    @Test
+    fun exerciseSwatchShowsTheSessionsThatStartedTodayAndMovesOnAtMidnight() {
+        val exercise = ExerciseRepository(db, time.provider)
+        runBlocking {
+            val session = exercise.startVolumeSession(SessionTimer.started(0, 1))
+            exercise.finish(session.id, 40, SessionTimer.paused(session.timer, 300_000, 1))
+            exercise.startVolumeSession(SessionTimer.started(400_000, 1))
+        }
+
+        val state = awaitState { it.content?.exercise?.reps == 40 }
+        // The open session has no reps yet, so it doesn't paint the day.
+        assertEquals(ExerciseToday(reps = 40, sessions = 1), state.content!!.exercise)
+        assertEquals(listOf(QuickAction.StartExercise), state.content.quickActions)
+
+        time.setLocal(day.plusDays(1).atTime(0, 1))
+        time.announceChange()
+
+        val tomorrow = awaitState { it.content?.date == day.plusDays(1) }
+        assertEquals(ExerciseToday(reps = 0, sessions = 0), tomorrow.content!!.exercise)
     }
 }

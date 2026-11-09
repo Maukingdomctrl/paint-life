@@ -10,7 +10,7 @@ enum class TopLevelDestination(
     @param:DrawableRes val iconRes: Int,
 ) {
     TODAY(TodayRoute, R.string.nav_today, R.drawable.ic_nav_today),
-    EXERCISE(ExerciseRoute, R.string.nav_exercise, R.drawable.ic_nav_exercise),
+    EXERCISE(ExerciseGraph, R.string.nav_exercise, R.drawable.ic_nav_exercise),
     QUIET(QuietRoute, R.string.nav_quiet, R.drawable.ic_nav_quiet),
     MY_TIME(MyTimeRoute, R.string.nav_my_time, R.drawable.ic_nav_my_time),
     PROGRESS(ProgressRoute, R.string.nav_progress, R.drawable.ic_nav_progress),

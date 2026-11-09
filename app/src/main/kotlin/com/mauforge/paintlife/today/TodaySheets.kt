@@ -6,18 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,35 +38,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.mauforge.paintlife.R
 import com.mauforge.paintlife.core.designsystem.component.DestructiveButton
+import com.mauforge.paintlife.core.designsystem.component.PaintLifeSheet
 import com.mauforge.paintlife.core.designsystem.component.PrimaryButton
 import com.mauforge.paintlife.core.designsystem.component.QuietButton
 import com.mauforge.paintlife.core.designsystem.component.SecondaryButton
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
-
-/** Bottom sheet frame shared by the Today sheets: surface colour, gutter, scrolls at large text. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TodaySheet(onDismiss: () -> Unit, testTag: String, content: @Composable () -> Unit) {
-    val colors = PaintLifeTheme.colors
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = colors.surface,
-        contentColor = colors.text,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = PaintLifeTheme.spacing.screenGutter)
-                .padding(bottom = PaintLifeTheme.spacing.xl)
-                .testTag(testTag),
-            verticalArrangement = Arrangement.spacedBy(PaintLifeTheme.spacing.lg),
-        ) {
-            content()
-        }
-    }
-}
 
 /**
  * Add or edit one priority. Editing also offers Move up / Move down (applied at once) and
@@ -85,7 +56,7 @@ fun PriorityEditorSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    TodaySheet(onDismiss = onDismiss, testTag = "priority_editor") {
+    PaintLifeSheet(onDismiss = onDismiss, modifier = Modifier.testTag("priority_editor")) {
         PriorityEditorBody(editor, onSave, onMove, onDelete)
     }
 }
@@ -182,7 +153,7 @@ fun CarryOverSheet(
     onConfirm: (List<String>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    TodaySheet(onDismiss = onDismiss, testTag = "carry_over_sheet") {
+    PaintLifeSheet(onDismiss = onDismiss, modifier = Modifier.testTag("carry_over_sheet")) {
         CarryOverBody(offer, onConfirm, onCancel = onDismiss)
     }
 }

@@ -4,6 +4,7 @@ import android.app.Application
 import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.di.ApplicationScope
 import com.mauforge.paintlife.core.time.TimeProvider
+import com.mauforge.paintlife.exercise.ExerciseSessionController
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -17,6 +18,12 @@ class PaintLifeApplication : Application() {
     @Inject lateinit var timeProvider: TimeProvider
 
     @Inject @ApplicationScope lateinit var applicationScope: CoroutineScope
+
+    /**
+     * Created with the process, so a session left running when the app was closed or the phone
+     * restarted is restored as paused straight away (see ExerciseSessionController).
+     */
+    @Inject lateinit var exerciseSessions: ExerciseSessionController
 
     override fun onCreate() {
         super.onCreate()

@@ -10,6 +10,7 @@ import com.mauforge.paintlife.core.database.SeedCallback
 import com.mauforge.paintlife.core.di.AppModule
 import com.mauforge.paintlife.core.di.ApplicationScope
 import com.mauforge.paintlife.core.time.DayClock
+import com.mauforge.paintlife.core.time.SessionClock
 import com.mauforge.paintlife.core.time.TimeProvider
 import dagger.Module
 import dagger.Provides
@@ -28,7 +29,7 @@ import javax.inject.Singleton
 
 /**
  * Replaces [AppModule] in @HiltAndroidTest tests: a fresh in-memory database and a throwaway
- * DataStore file per test, the system clock, and no system broadcasts.
+ * DataStore file per test, the system clocks, and no system broadcasts.
  */
 @Module
 @TestInstallIn(components = [SingletonComponent::class], replaces = [AppModule::class])
@@ -53,6 +54,10 @@ object TestAppModule {
     @Provides
     @Singleton
     fun provideDayClock(time: TimeProvider): DayClock = DayClock(time, emptyFlow())
+
+    @Provides
+    @Singleton
+    fun provideSessionClock(): SessionClock = SessionClock(elapsed = { System.nanoTime() / 1_000_000 }, boot = { 1 })
 
     @Provides
     @Singleton

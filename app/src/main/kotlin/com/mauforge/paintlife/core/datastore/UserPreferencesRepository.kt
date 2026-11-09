@@ -2,6 +2,7 @@ package com.mauforge.paintlife.core.datastore
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -41,7 +42,15 @@ class UserPreferencesRepository @Inject constructor(
         return stored
     }
 
+    /** True once the exercise safety guidance has been read ("I've read this"). */
+    val hasReadExerciseSafety: Flow<Boolean> = data.map { prefs -> prefs[EXERCISE_SAFETY_READ] == true }
+
+    suspend fun markExerciseSafetyRead() {
+        dataStore.edit { prefs -> prefs[EXERCISE_SAFETY_READ] = true }
+    }
+
     private companion object {
         val FIRST_LAUNCH_DATE = stringPreferencesKey("first_launch_date")
+        val EXERCISE_SAFETY_READ = booleanPreferencesKey("exercise_safety_read")
     }
 }
