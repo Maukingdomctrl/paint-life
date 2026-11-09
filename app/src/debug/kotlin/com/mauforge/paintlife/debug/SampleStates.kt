@@ -28,9 +28,12 @@ import com.mauforge.paintlife.progress.TimeReport
 import com.mauforge.paintlife.quiet.QuietDay
 import com.mauforge.paintlife.quiet.QuietPhase
 import com.mauforge.paintlife.quiet.QuietUiState
+import com.mauforge.paintlife.core.time.DayPart
+import com.mauforge.paintlife.today.CarryOverUi
 import com.mauforge.paintlife.today.CategoryMinutes
-import com.mauforge.paintlife.today.Greeting
+import com.mauforge.paintlife.today.ExerciseToday
 import com.mauforge.paintlife.today.PriorityItem
+import com.mauforge.paintlife.today.QuickAction
 import com.mauforge.paintlife.today.TodayStripBlock
 import com.mauforge.paintlife.today.TodayUiState
 import java.time.LocalDate
@@ -54,22 +57,23 @@ private fun clock(minuteOfDay: Int) = "%02d:%02d".format(Locale.ROOT, minuteOfDa
 private fun minutes(m: Int, s: Int = 0) = TimeUnit.MINUTES.toMillis(m.toLong()) + TimeUnit.SECONDS.toMillis(s.toLong())
 
 object TodaySamples {
+    private val AllQuickActions = QuickAction.entries.toList()
+
     val emptyMorning = TodayUiState(
         date = SampleDay,
-        greeting = Greeting.Morning,
-        exerciseRepsToday = 0,
-        exerciseSessionsToday = 0,
+        dayPart = DayPart.Morning,
+        exercise = ExerciseToday(reps = 0, sessions = 0),
         quietCompletedToday = false,
         timeByCategory = emptyList(),
         priorities = emptyList(),
         strip = listOf(TodayStripBlock(0, min(7, 10), null)),
+        quickActions = AllQuickActions,
     )
 
     val partlyPainted = TodayUiState(
         date = SampleDay,
-        greeting = Greeting.Afternoon,
-        exerciseRepsToday = 120,
-        exerciseSessionsToday = 1,
+        dayPart = DayPart.Afternoon,
+        exercise = ExerciseToday(reps = 120, sessions = 1),
         quietCompletedToday = false,
         timeByCategory = listOf(
             CategoryMinutes("Sleep", "night", 420),
@@ -91,15 +95,15 @@ object TodaySamples {
             TodayStripBlock(min(9), min(12, 30), "slate"),
             TodayStripBlock(min(12, 30), min(13, 50), null),
         ),
+        quickActions = AllQuickActions,
     )
 
     val twoPriorities = partlyPainted.copy(priorities = partlyPainted.priorities.take(2))
 
     val fullyPainted = TodayUiState(
         date = SampleDay,
-        greeting = Greeting.Evening,
-        exerciseRepsToday = 300,
-        exerciseSessionsToday = 2,
+        dayPart = DayPart.Evening,
+        exercise = ExerciseToday(reps = 300, sessions = 2),
         quietCompletedToday = true,
         timeByCategory = listOf(
             CategoryMinutes("Sleep", "night", 420),
@@ -121,6 +125,23 @@ object TodaySamples {
             TodayStripBlock(min(18), min(18, 45), "amber"),
             TodayStripBlock(min(18, 45), min(19, 45), "moss"),
             TodayStripBlock(min(19, 45), min(20, 30), null),
+        ),
+        quickActions = AllQuickActions,
+    )
+
+    /** What the real screen shows in Iteration 3: priorities only, other areas not tracked yet. */
+    val notTrackedYet = TodayUiState(
+        date = SampleDay,
+        dayPart = DayPart.Morning,
+        priorities = listOf(PriorityItem("p4", "Water the plants", done = false)),
+        carryOver = CarryOverUi(
+            sourceDate = SampleDay.minusDays(1),
+            sourceIsYesterday = true,
+            items = listOf(
+                PriorityItem("y2", "Walk to the market", done = false),
+                PriorityItem("y3", "Read one chapter", done = false),
+            ),
+            freePlaces = 2,
         ),
     )
 }

@@ -9,7 +9,6 @@
     <string name="nav_my_time">My Time</string>
     <string name="nav_progress">Progress</string>
 
-    <string name="title_today">Today</string>
     <string name="title_exercise">Exercise</string>
     <string name="title_quiet">Quiet Time</string>
     <string name="title_my_time">My Time</string>
@@ -19,7 +18,6 @@
     <string name="not_built_badge">Not built yet</string>
     <string name="coming_in_iteration">Coming in Iteration %1$d</string>
     <string name="not_built_note">Nothing on this screen is recorded or calculated yet.</string>
-    <string name="coming_today">Your three daily priorities, today\'s exercise and quiet-time progress, and a short summary of your day.</string>
     <string name="coming_exercise">The step-up counter, your session history and the Paint Life Cat League.</string>
     <string name="coming_quiet">The five-minute quiet timer, with daily, weekly and monthly history.</string>
     <string name="coming_my_time">A 24-hour timeline for recording where your day actually goes.</string>
@@ -93,6 +91,40 @@
     <string name="today_so_far">Today so far</string>
     <string name="today_strip_description">Today so far: %1$s recorded, %2$s not recorded</string>
     <string name="today_strip_legend">Hatched stretches are time that passed without a record.</string>
+    <string name="today_not_tracked">Not tracked yet</string>
+    <string name="today_add_title">Add a priority</string>
+    <string name="today_edit_title">Edit priority</string>
+    <string name="today_priority_label">Priority</string>
+    <string name="today_priority_counter">%1$d/%2$d</string>
+    <plurals name="today_priority_counter_description">
+        <item quantity="one">%1$d of %2$d characters</item>
+        <item quantity="other">%1$d of %2$d characters</item>
+    </plurals>
+    <string name="today_move_up">Move up</string>
+    <string name="today_move_down">Move down</string>
+    <string name="today_delete_priority">Delete priority</string>
+    <string name="today_deleted">Deleted “%1$s”</string>
+    <string name="action_undo">Undo</string>
+    <string name="today_notice_limit">Today already has three priorities.</string>
+    <string name="today_notice_restore_failed">Couldn\'t put it back. Today already has three priorities.</string>
+    <string name="today_carry_title_yesterday">Still open from yesterday</string>
+    <string name="today_carry_title_day">Still open from %1$s</string>
+    <plurals name="today_carry_body">
+        <item quantity="one">%1$d priority is still open. Bring it to today?</item>
+        <item quantity="other">%1$d priorities are still open. Bring any of them to today?</item>
+    </plurals>
+    <string name="today_carry_choose">Choose</string>
+    <string name="action_not_now">Not now</string>
+    <string name="today_carry_sheet_title">Bring to today</string>
+    <plurals name="today_carry_room">
+        <item quantity="one">Today has room for %1$d more.</item>
+        <item quantity="other">Today has room for %1$d more.</item>
+    </plurals>
+    <string name="today_carry_note">They are copied. The originals stay on their own day.</string>
+    <plurals name="today_carry_confirm">
+        <item quantity="one">Bring %1$d to today</item>
+        <item quantity="other">Bring %1$d to today</item>
+    </plurals>
 
     <!-- Exercise -->
     <string name="volume_lifetime">Lifetime step-ups</string>

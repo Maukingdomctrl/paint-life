@@ -86,7 +86,7 @@ class DesignGalleryActivity : ComponentActivity() {
 class GalleryEntry(val id: String, val section: String, val title: String, val content: @Composable () -> Unit)
 
 private fun today(id: String, title: String, state: TodayUiState) = GalleryEntry(id, "Today", title) {
-    TodayContent(state, {}, {}, {}, {}, {}, {})
+    TodayContent(state, { _, _ -> }, {}, {}, {}, {}, {})
 }
 
 private fun exercise(id: String, title: String, state: ExerciseUiState) = GalleryEntry(id, "Exercise", title) {
@@ -130,6 +130,7 @@ val galleryEntries: List<GalleryEntry> = listOf(
     today("today_partial", "Partly painted", TodaySamples.partlyPainted),
     today("today_two", "Two priorities", TodaySamples.twoPriorities),
     today("today_full", "Fully painted evening", TodaySamples.fullyPainted),
+    today("today_not_tracked", "Iteration 3: not tracked yet, carry-over offer", TodaySamples.notTrackedYet),
     exercise("exercise_first", "First day", ExerciseSamples.firstDay),
     exercise("exercise_midway", "Two cats beaten", ExerciseSamples.midway),
     exercise("exercise_restored", "Session restored after closing", ExerciseSamples.restoredSession),

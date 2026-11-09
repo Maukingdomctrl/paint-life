@@ -1,6 +1,6 @@
 # Project manifest
 
-Updated at the end of each iteration. Last update: Iteration 2 (visual design and all screen layouts).
+Updated at the end of each iteration. Last update: Iteration 3 (Today screen and daily planning).
 
 ## Toolchain and versions
 
@@ -16,7 +16,8 @@ All versions are pinned in `gradle/libs.versions.toml`.
 | KSP | 2.3.13 | https://github.com/google/ksp/releases |
 | Compose BOM | 2026.09.00 | https://developer.android.com/develop/ui/compose/bom |
 | Room | 2.8.5 | https://developer.android.com/jetpack/androidx/releases/room |
-| Hilt | 2.60.1 | https://github.com/google/dagger/releases |
+| Hilt (+ hilt-android-testing) | 2.60.1 | https://github.com/google/dagger/releases |
+| androidx.hilt (hilt-lifecycle-viewmodel-compose) | 1.4.0 | https://developer.android.com/jetpack/androidx/releases/hilt (needs AGP 9.2+, KGP 2.2+) |
 | Navigation | 2.10.2 | https://developer.android.com/jetpack/androidx/releases/navigation |
 | DataStore | 1.3.0 | https://developer.android.com/jetpack/androidx/releases/datastore |
 | Lifecycle | 2.11.0 | https://developer.android.com/jetpack/androidx/releases/lifecycle |
@@ -44,7 +45,7 @@ Known deviations from the official tables:
 - `gradle/wrapper/gradle-wrapper.{jar,properties}`, `gradlew`, `gradlew.bat`
 - `app/build.gradle.kts`: SDK levels, Java 17 bytecode, release signing guard, Room schema export, Robolectric JVM flags
 - `app/proguard-rules.pro`, `keystore.properties.example`
-- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/1.json`: generated, checked in
+- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2}.json`: generated, checked in
 
 ### Manifest and resources (`app/src/main/`)
 - `AndroidManifest.xml`: no permissions, `allowBackup=false`
@@ -52,7 +53,7 @@ Known deviations from the official tables:
 - `res/values/{strings,colors,themes}.xml`: dark window theme; all UI strings and plurals
 - `res/values/cat_art_{ana,mia,zoe,eva,luna,sara,nina,maya,aria,champion}.xml`: TEMPORARY aliases of the placeholder, replaced by `res/drawable-nodpi/cat_<key>.webp` on import
 - `res/drawable/cat_placeholder.xml`: TEMPORARY neutral cat avatar
-- `res/drawable/ic_{check,lock,add,undo,pause,play,flag,info,chevron_left,chevron_right,close,edit,refresh}.xml`: Material icon shapes (Apache 2.0)
+- `res/drawable/ic_{check,lock,add,undo,pause,play,flag,info,chevron_left,chevron_right,close,edit,refresh,arrow_up,arrow_down}.xml`: Material icon shapes (Apache 2.0)
 - `res/font/bricolage_grotesque.ttf`, `res/font/atkinson_hyperlegible_next.ttf`: bundled variable fonts (SIL OFL 1.1, licences in `docs/licenses/`)
 - `res/drawable/ic_launcher_{foreground,monochrome}.xml`, `res/mipmap-anydpi/ic_launcher{,_round}.xml`
 - `res/drawable/ic_nav_{today,exercise,quiet,my_time,progress}.xml`: original vector icons
@@ -63,11 +64,11 @@ Known deviations from the official tables:
 - `navigation/`: `Routes`, `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot)
 - `core/designsystem/theme/`: `Color` (dark palette, `CategoryPalette`), `PaintLifeColors` (extended roles, swatch rule), `Type` (fonts, `NumberStyles`), `Shape` (`ShapeTokens`), `Spacing`, `Theme` (dark only)
 - `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`
-- `core/database/`: `PaintLifeDatabase` (v1), `Converters`, `Migrations`, `SeedData` (+ `SeedCallback`), `SessionStatus`
+- `core/database/`: `PaintLifeDatabase` (v2), `Converters`, `Migrations` (`allMigrations`), `Migration1To2`, `SeedData` (+ `SeedCallback`), `SessionStatus`
 - `core/datastore/UserPreferencesRepository.kt`
-- `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, application scope
-- `core/time/`: `TimeProvider`, `TimerCheckpoint`, `DurationFormat`
-- `today/`: `TodayScreen`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`
+- `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, `DayClock`, application scope
+- `core/time/`: `TimeProvider`, `DayClock` (+ `DayMoment`, `DayPart`: which day it is, across midnight, zone and DST changes), `TimerCheckpoint`, `DurationFormat`
+- `today/`: `TodayScreen` (wired: ViewModel, sheets, Undo snackbar), `TodayViewModel`, `TodayRepository` (+ `PriorityTitle`), `TodayDao`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`, `TodaySheets` (add/edit, carry-over picker)
 - `exercise/`: `ExerciseScreen`, `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState`, `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `CatDetailContent` (+ victory)
 - `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (+ `CatArt` placeholder detection)
 - `quiet/`: `QuietScreen`, `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent`
@@ -76,15 +77,19 @@ Known deviations from the official tables:
 
 ### Tests (`app/src/test/`)
 - `resources/robolectric.properties`: uses a plain Application in tests
-- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest`
+- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 to v2, data kept)
 - `core/datastore/UserPreferencesRepositoryTest`
-- `core/time/TimeProviderTest`, `core/time/DurationFormatTest`
+- `core/time/TimeProviderTest`, `core/time/DurationFormatTest`, `core/time/DayClockTest` (midnight, noon, zone change, DST, missed broadcast)
+- `today/TodayRepositoryTest`: max 3 (also concurrent), order, delete/restore, move, carry-over, zones, restart
+- `today/TodayViewModelTest`: midnight rollover, date-line crossing, repeated taps, undo
+- `today/TodayScreenTest`: Compose UI tests for add, complete, edit, move, delete + undo, carry-over, not-tracked swatches
+- `testing/TestTime`, `testing/TestAppModule` (Hilt test graph replacing `AppModule`)
 - `core/designsystem/theme/ContrastTest`: WCAG ratios for every pairing and category colour
 - `core/designsystem/component/ComponentsTest`: touch targets, semantics, real actions
 - `exercise/cats/CatRosterTest`: roster vs seed data, names, placeholder slots
 - `mytime/TimelineGeometryTest`: midnight split, DST 23/25-hour days, gaps
 - `debug/ScreenLayoutsTest`: every gallery sample at 200% text on 320dp, plus layout rules
-- `navigation/NavigationTest`: Compose UI test under Robolectric
+- `navigation/NavigationTest`: the real activity under Hilt test + Robolectric
 
 ### Debug only (`app/src/debug/`), never in release
 - `AndroidManifest.xml`: `DesignGalleryActivity`

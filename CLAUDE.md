@@ -54,6 +54,10 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - A "distraction" is any category with a distraction flag, which the user can change. Phone/internet and Entertainment have it on by default.
 - The first 7 days are observation. Suggested schedules always need the user's approval.
 
+## Destructive actions
+- Small deletions that are easy to put back (for example, deleting one priority) happen at once and show an Undo snackbar. No confirmation dialog.
+- Bigger destructive actions (resetting counts, deleting history, replacing data on import) always ask for confirmation first.
+
 ## Data and backup
 - Use Room with explicit migrations and stable IDs. Never use destructive migration fallbacks. Wrap multi-table writes in transactions.
 - Provide JSON export/import through the system file picker (SAF), so no storage permission is needed. The JSON is versioned. Import validates the file and confirms before replacing anything.

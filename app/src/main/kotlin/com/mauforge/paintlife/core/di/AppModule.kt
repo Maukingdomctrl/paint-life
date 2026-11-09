@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
+import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.TimeProvider
 import dagger.Module
 import dagger.Provides
@@ -45,6 +46,11 @@ object AppModule {
     @Singleton
     fun provideTimeProvider(): TimeProvider =
         TimeProvider(clock = Clock.systemUTC(), zoneSupplier = { ZoneId.systemDefault() })
+
+    @Provides
+    @Singleton
+    fun provideDayClock(@ApplicationContext context: Context, time: TimeProvider): DayClock =
+        DayClock(time, DayClock.systemTimeChanges(context))
 
     @Provides
     @Singleton

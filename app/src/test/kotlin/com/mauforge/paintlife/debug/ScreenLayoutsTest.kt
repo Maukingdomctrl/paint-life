@@ -75,18 +75,18 @@ class ScreenLayoutsTest {
 
     @Test
     fun todayPriorityToggleAndEditAreRealActions() {
-        val toggled = mutableListOf<String>()
+        val toggled = mutableListOf<Pair<String, Boolean>>()
         val edited = mutableListOf<String>()
         composeRule.setContent {
             PaintLifeTheme {
-                TodayContent(TodaySamples.partlyPainted, { toggled += it }, { edited += it }, {}, {}, {}, {})
+                TodayContent(TodaySamples.partlyPainted, { id, done -> toggled += id to done }, { edited += it }, {}, {}, {}, {})
             }
         }
         composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Walk to the market"))
         composeRule.onNodeWithText("Walk to the market").performClick()
         composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasContentDescription("Edit priority: Read one chapter"))
         composeRule.onNode(hasContentDescription("Edit priority: Read one chapter")).performClick()
-        assertEquals(listOf("p2"), toggled)
+        assertEquals(listOf("p2" to true), toggled)
         assertEquals(listOf("p3"), edited)
     }
 

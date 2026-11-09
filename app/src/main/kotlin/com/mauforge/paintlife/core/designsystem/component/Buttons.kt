@@ -90,7 +90,11 @@ fun QuietButton(
     )
 }
 
-/** Destructive action. Always opens a confirmation first; the confirming button is this one too. */
+/**
+ * Destructive action. Small, undoable deletions (one priority) act at once and offer Undo;
+ * bigger ones (resetting counts, deleting history) open a confirmation whose confirming
+ * button is this one too.
+ */
 @Composable
 fun DestructiveButton(
     text: String,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ import com.mauforge.paintlife.core.designsystem.component.DayStrip
 import com.mauforge.paintlife.core.designsystem.component.DayStripBlock
 import com.mauforge.paintlife.core.designsystem.component.EmptyState
 import com.mauforge.paintlife.core.designsystem.component.HeroPanel
+import com.mauforge.paintlife.core.designsystem.component.PaintLifeCard
 import com.mauforge.paintlife.core.designsystem.component.PaintLifeScreen
 import com.mauforge.paintlife.core.designsystem.component.PrimaryButton
 import com.mauforge.paintlife.core.designsystem.component.QuietButton
@@ -49,22 +51,25 @@ import com.mauforge.paintlife.core.designsystem.component.Tray
 import com.mauforge.paintlife.core.designsystem.component.TrayDivider
 import com.mauforge.paintlife.core.designsystem.component.paintedOrEmpty
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
+import com.mauforge.paintlife.core.time.DayPart
 import com.mauforge.paintlife.core.time.DurationFormat
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
  * Today: "What matters today?" Date and greeting, today's three swatches, up to three
- * priorities, quick actions and a strip of the day so far. Stateless; wired in Iteration 3.
+ * priorities (with the offer to bring unfinished ones from an earlier day), and, once their
+ * features exist, quick actions and a strip of the day so far. Stateless.
  */
 @Composable
 fun TodayContent(
     state: TodayUiState,
-    onTogglePriority: (String) -> Unit,
+    onSetCompleted: (id: String, completed: Boolean) -> Unit,
     onEditPriority: (String) -> Unit,
     onAddPriority: () -> Unit,
-    onStartExercise: () -> Unit,
-    onStartQuiet: () -> Unit,
-    onLogTime: () -> Unit,
+    onReviewCarryOver: () -> Unit,
+    onDismissCarryOver: () -> Unit,
+    onQuickAction: (QuickAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = PaintLifeTheme.spacing
@@ -85,11 +90,14 @@ fun TodayContent(
                         }
                     },
                 )
-                Priorities(state, onTogglePriority, onEditPriority, onAddPriority)
+                state.carryOver?.let { CarryOverCard(it, state.date, onReviewCarryOver, onDismissCarryOver) }
+                Priorities(state, onSetCompleted, onEditPriority, onAddPriority)
             }
         }
-        item(key = "actions") { QuickActions(onStartExercise, onStartQuiet, onLogTime) }
-        item(key = "strip") { TodaySoFar(state) }
+        if (state.quickActions.isNotEmpty()) {
+            item(key = "actions") { QuickActions(state.quickActions, onQuickAction) }
+        }
+        state.strip?.let { strip -> item(key = "strip") { TodaySoFar(strip, state.dayLengthMinutes) } }
     }
 }
 
@@ -104,10 +112,10 @@ private fun TodayHeader(state: TodayUiState) {
         )
         Text(
             text = stringResource(
-                when (state.greeting) {
-                    Greeting.Morning -> R.string.greeting_morning
-                    Greeting.Afternoon -> R.string.greeting_afternoon
-                    Greeting.Evening -> R.string.greeting_evening
+                when (state.dayPart) {
+                    DayPart.Morning -> R.string.greeting_morning
+                    DayPart.Afternoon -> R.string.greeting_afternoon
+                    DayPart.Evening -> R.string.greeting_evening
                 },
             ),
             style = MaterialTheme.typography.displaySmall,
@@ -127,30 +135,41 @@ private fun TodayCanvas(state: TodayUiState) {
             modifier = Modifier.fillMaxWidth().padding(top = spacing.md),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            val exerciseValue = if (state.exerciseSessionsToday > 0) {
-                pluralStringResource(R.plurals.reps, state.exerciseRepsToday, state.exerciseRepsToday)
-            } else {
-                stringResource(R.string.today_not_yet)
-            }
+            val notTracked = stringResource(R.string.today_not_tracked)
+            val exercise = state.exercise
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_exercise),
-                value = exerciseValue,
-                segments = paintedOrEmpty(state.exerciseSessionsToday > 0, colors.swatchExercise),
-                modifier = Modifier.weight(1f),
+                value = when {
+                    exercise == null -> notTracked
+                    exercise.sessions > 0 -> pluralStringResource(R.plurals.reps, exercise.reps, exercise.reps)
+                    else -> stringResource(R.string.today_not_yet)
+                },
+                segments = paintedOrEmpty(exercise != null && exercise.sessions > 0, colors.swatchExercise),
+                modifier = Modifier.weight(1f).testTag("swatch_exercise"),
             )
+            val quiet = state.quietCompletedToday
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_quiet),
-                value = stringResource(if (state.quietCompletedToday) R.string.today_done else R.string.today_not_yet),
-                segments = paintedOrEmpty(state.quietCompletedToday, colors.swatchQuiet),
-                modifier = Modifier.weight(1f),
+                value = when (quiet) {
+                    null -> notTracked
+                    true -> stringResource(R.string.today_done)
+                    false -> stringResource(R.string.today_not_yet)
+                },
+                segments = paintedOrEmpty(quiet == true, colors.swatchQuiet),
+                modifier = Modifier.weight(1f).testTag("swatch_quiet"),
             )
+            val time = state.timeByCategory
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_time),
-                value = if (state.timeLoggedMinutes > 0) DurationFormat.hoursMinutes(state.timeLoggedMinutes) else stringResource(R.string.today_not_yet),
-                segments = state.timeByCategory.map {
+                value = when {
+                    time == null -> notTracked
+                    state.timeLoggedMinutes > 0 -> DurationFormat.hoursMinutes(state.timeLoggedMinutes)
+                    else -> stringResource(R.string.today_not_yet)
+                },
+                segments = time.orEmpty().map {
                     SwatchSegment(colors.category(it.colorKey), it.minutes.toFloat() / state.dayLengthMinutes)
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag("swatch_time"),
             )
         }
     }
@@ -178,7 +197,7 @@ private fun CanvasSwatch(label: String, value: String, segments: List<SwatchSegm
 @Composable
 private fun Priorities(
     state: TodayUiState,
-    onToggle: (String) -> Unit,
+    onSetCompleted: (String, Boolean) -> Unit,
     onEdit: (String) -> Unit,
     onAdd: () -> Unit,
 ) {
@@ -196,7 +215,7 @@ private fun Priorities(
     Tray(Modifier.fillMaxWidth()) {
         state.priorities.forEachIndexed { index, priority ->
             if (index > 0) TrayDivider()
-            PriorityRow(priority, onToggle = { onToggle(priority.id) }, onEdit = { onEdit(priority.id) })
+            PriorityRow(priority, onSetCompleted = { onSetCompleted(priority.id, it) }, onEdit = { onEdit(priority.id) })
         }
         if (state.canAddPriority) {
             TrayDivider()
@@ -211,7 +230,7 @@ private fun Priorities(
 }
 
 @Composable
-private fun PriorityRow(priority: PriorityItem, onToggle: () -> Unit, onEdit: () -> Unit) {
+private fun PriorityRow(priority: PriorityItem, onSetCompleted: (Boolean) -> Unit, onEdit: () -> Unit) {
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
     Row(
@@ -222,7 +241,7 @@ private fun PriorityRow(priority: PriorityItem, onToggle: () -> Unit, onEdit: ()
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 56.dp)
-                .toggleable(value = priority.done, role = Role.Checkbox, onValueChange = { onToggle() })
+                .toggleable(value = priority.done, role = Role.Checkbox, onValueChange = onSetCompleted)
                 .padding(horizontal = spacing.lg, vertical = spacing.sm),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
             verticalAlignment = Alignment.CenterVertically,
@@ -232,6 +251,7 @@ private fun PriorityRow(priority: PriorityItem, onToggle: () -> Unit, onEdit: ()
                 text = priority.title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (priority.done) colors.textSecondary else colors.text,
+                modifier = Modifier.weight(1f),
             )
         }
         IconButton(onClick = onEdit) {
@@ -266,7 +286,7 @@ internal fun CheckCircle(checked: Boolean, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun QuickActions(onStartExercise: () -> Unit, onStartQuiet: () -> Unit, onLogTime: () -> Unit) {
+private fun QuickActions(actions: List<QuickAction>, onAction: (QuickAction) -> Unit) {
     val spacing = PaintLifeTheme.spacing
     Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
         SectionHeader(title = stringResource(R.string.today_quick_actions))
@@ -276,28 +296,78 @@ private fun QuickActions(onStartExercise: () -> Unit, onStartQuiet: () -> Unit, 
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
             maxItemsInEachRow = 3,
         ) {
-            PrimaryButton(text = stringResource(R.string.action_start_exercise), onClick = onStartExercise, modifier = Modifier.weight(1f))
-            SecondaryButton(text = stringResource(R.string.action_quiet_time), onClick = onStartQuiet, modifier = Modifier.weight(1f))
-            SecondaryButton(text = stringResource(R.string.action_log_time), onClick = onLogTime, modifier = Modifier.weight(1f))
+            actions.forEachIndexed { index, action ->
+                val text = stringResource(
+                    when (action) {
+                        QuickAction.StartExercise -> R.string.action_start_exercise
+                        QuickAction.QuietTime -> R.string.action_quiet_time
+                        QuickAction.LogTime -> R.string.action_log_time
+                    },
+                )
+                if (index == 0) {
+                    PrimaryButton(text = text, onClick = { onAction(action) }, modifier = Modifier.weight(1f))
+                } else {
+                    SecondaryButton(text = text, onClick = { onAction(action) }, modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }
 
+/** The quiet offer to copy unfinished priorities from an earlier day. Neutral wording, no red. */
 @Composable
-private fun TodaySoFar(state: TodayUiState) {
+private fun CarryOverCard(offer: CarryOverUi, today: LocalDate, onReview: () -> Unit, onDismiss: () -> Unit) {
     val colors = PaintLifeTheme.colors
-    val recorded = state.strip.filter { it.colorKey != null }.sumOf { it.endMinute - it.startMinute }
-    val unrecorded = state.strip.filter { it.colorKey == null }.sumOf { it.endMinute - it.startMinute }
+    val spacing = PaintLifeTheme.spacing
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("carry_over_offer"), contentPadding = PaddingValues(spacing.lg)) {
+        Text(
+            text = if (offer.sourceIsYesterday) {
+                stringResource(R.string.today_carry_title_yesterday)
+            } else {
+                stringResource(R.string.today_carry_title_day, offer.sourceDate.format(dayFormatter(offer.sourceDate, today)))
+            },
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.text,
+        )
+        Text(
+            text = pluralStringResource(R.plurals.today_carry_body, offer.items.size, offer.items.size),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = spacing.xs),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SecondaryButton(text = stringResource(R.string.today_carry_choose), onClick = onReview, modifier = Modifier.weight(1f))
+            QuietButton(text = stringResource(R.string.action_not_now), onClick = onDismiss, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/** Weekday name within the last week, otherwise the weekday, day and month. */
+@Composable
+private fun dayFormatter(date: LocalDate, today: LocalDate): DateTimeFormatter {
+    val pattern = if (date.isAfter(today.minusDays(7))) "EEEE" else "EEEE d MMMM"
+    return DateTimeFormatter.ofPattern(pattern, currentLocale())
+}
+
+@Composable
+private fun TodaySoFar(strip: List<TodayStripBlock>, dayLengthMinutes: Int) {
+    val colors = PaintLifeTheme.colors
+    val recorded = strip.filter { it.colorKey != null }.sumOf { it.endMinute - it.startMinute }
+    val unrecorded = strip.filter { it.colorKey == null }.sumOf { it.endMinute - it.startMinute }
     Column(verticalArrangement = Arrangement.spacedBy(PaintLifeTheme.spacing.sm)) {
         Text(text = stringResource(R.string.today_so_far), style = MaterialTheme.typography.titleSmall, color = colors.textSecondary)
         DayStrip(
-            blocks = state.strip.map { DayStripBlock(it.startMinute, it.endMinute, it.colorKey?.let(colors::category)) },
+            blocks = strip.map { DayStripBlock(it.startMinute, it.endMinute, it.colorKey?.let(colors::category)) },
             contentDescription = stringResource(
                 R.string.today_strip_description,
                 DurationFormat.hoursMinutes(recorded),
                 DurationFormat.hoursMinutes(unrecorded),
             ),
-            dayLengthMinutes = state.dayLengthMinutes,
+            dayLengthMinutes = dayLengthMinutes,
         )
         Text(
             text = stringResource(R.string.today_strip_legend),
