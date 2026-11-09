@@ -1,19 +1,26 @@
 package com.mauforge.paintlife.exercise
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mauforge.paintlife.core.database.SessionStatus
 import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.TimeProvider
+import com.mauforge.paintlife.exercise.cats.CatRoster
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -33,7 +40,15 @@ internal fun displayTicks(periodMillis: Long): Flow<Unit> = flow {
     }
 }
 
-/** The Exercise tab: lifetime volume, the open session (if any) and the way into a session. */
+/** The ladder, kept current from the stored levels and best times. */
+internal fun ExerciseRepository.observeLeague(): Flow<List<LeagueEntry>> =
+    combine(observeLevels(), observeTimedBests(), League::entries)
+
+/**
+ * The Exercise tab: lifetime volume, the open session (if any), the Cat League, and a win whose
+ * victory moment has not been shown yet ([pendingVictory]; for example one applied at app start
+ * after the app was closed during the undo window).
+ */
 @HiltViewModel
 class ExerciseViewModel @Inject constructor(
     repository: ExerciseRepository,
@@ -42,87 +57,131 @@ class ExerciseViewModel @Inject constructor(
     private val time: TimeProvider,
 ) : ViewModel() {
 
+    private val session = combine(controller.live, controller.loaded, displayTicks(TAB_TICK_MS)) { live, loaded, _ ->
+        loaded to live?.let {
+            ActiveSessionSummary(
+                type = it.session.type,
+                reps = it.counter.reps,
+                activeMillis = controller.activeMillis(it),
+                isPaused = it.isPaused,
+                opponentLevel = it.session.challengeLevel,
+                startedOn = it.session.startDate.takeIf { date -> date != time.today() },
+            )
+        }
+    }
+
     val state: StateFlow<ExerciseUiState?> = combine(
         repository.observeLifetimeReps(),
-        controller.live,
-        controller.loaded,
+        repository.observeLeague(),
+        session,
         preferences.hasReadExerciseSafety,
-        displayTicks(TAB_TICK_MS),
-    ) { lifetime, live, loaded, hasReadSafety, _ ->
+    ) { lifetime, league, (loaded, active), hasReadSafety ->
         if (!loaded) return@combine null
-        ExerciseUiState(
-            lifetimeReps = lifetime,
-            // The Cat League is wired in the second part of Iteration 4.
-            league = emptyList(),
-            activeSession = live?.let {
-                ActiveSessionSummary(
-                    type = it.session.type,
-                    reps = it.counter.reps,
-                    activeMillis = controller.activeMillis(it),
-                    isPaused = it.isPaused,
-                    opponentLevel = it.session.challengeLevel,
-                    startedOn = it.session.startDate.takeIf { date -> date != time.today() },
-                )
-            },
-            hasReadSafety = hasReadSafety,
-            leagueReady = false,
-        )
+        ExerciseUiState(lifetimeReps = lifetime, league = league, activeSession = active, hasReadSafety = hasReadSafety)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /** Id of a winning session whose victory hasn't been shown; the tab opens it. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pendingVictory: StateFlow<String?> = combine(controller.loaded, controller.finishWindow, ::Pair)
+        .flatMapLatest { (loaded, window) ->
+            // Not before results are reconciled, and not while a result can still be undone.
+            if (!loaded || window != null) {
+                flowOf(null)
+            } else {
+                preferences.victorySeenUpTo.flatMapLatest { seen -> repository.observeLatestWinAfter(seen) }.map { it?.id }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     private companion object {
         const val TAB_TICK_MS = 1_000L
     }
 }
 
+/** One cat: its words, benchmark, best time, and Start / Replay when it can be challenged. */
+@HiltViewModel
+class CatDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    repository: ExerciseRepository,
+    controller: ExerciseSessionController,
+) : ViewModel() {
+    private val level: Int = savedStateHandle.get<Int>("level") ?: 0
+
+    val state: StateFlow<CatDetailUi?> = combine(repository.observeLeague(), controller.live, controller.finishWindow) { league, live, window ->
+        val entry = league.firstOrNull { it.cat.level == level } ?: return@combine null
+        CatDetailUi(entry = entry, previous = CatRoster.forLevel(level - 1), canStart = live == null && window == null)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+}
+
 /**
- * The counter. Opening it continues the open session or starts a step-up session; the very first
- * time, the safety guidance is shown first. Counting, pausing and resuming go straight to
- * [ExerciseSessionController], which saves them; nothing here times anything.
+ * The counter. Opening it continues the open session, or starts a step-up session ([level] 0)
+ * or a timed challenge against [level]; the very first time, the safety guidance comes first.
+ * Counting, pausing and resuming go straight to [ExerciseSessionController], which saves them;
+ * nothing here times anything.
  */
 @HiltViewModel
 class ExerciseSessionViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val controller: ExerciseSessionController,
+    repository: ExerciseRepository,
     private val preferences: UserPreferencesRepository,
 ) : ViewModel() {
+
+    private val level: Int = savedStateHandle.get<Int>("level") ?: 0
 
     private enum class Step { Checking, Safety, Starting, Active, Closed }
 
     private data class Local(
         val step: Step = Step.Checking,
+        val sessionId: String? = null,
         val dialog: SessionDialog? = null,
         val correcting: Boolean = false,
-        val finishing: Boolean = false,
+        val busy: Boolean = false,
     )
 
     private val local = MutableStateFlow(Local())
 
-    val state: StateFlow<ExerciseSessionScreenState> = combine(local, controller.live, displayTicks(CLOCK_TICK_MS)) { local, live, _ ->
+    private val source = combine(controller.live, controller.finishWindow, controller.lastResult, ::Triple)
+
+    val state: StateFlow<ExerciseSessionScreenState> = combine(
+        local,
+        source,
+        repository.observeLeague(),
+        displayTicks(CLOCK_TICK_MS),
+    ) { local, (live, window, result), league, _ ->
         val phase = when (local.step) {
             Step.Checking, Step.Starting -> SessionPhase.Loading
             Step.Safety -> SessionPhase.SafetyFirst
             Step.Closed -> SessionPhase.Closed
-            Step.Active -> if (live == null) {
-                SessionPhase.Closed
-            } else {
-                SessionPhase.Counting(
-                    ExerciseSessionUiState(
-                        type = live.session.type,
-                        reps = live.counter.reps,
-                        elapsedMillis = controller.activeMillis(live),
-                        isPaused = live.isPaused,
-                        opponent = null,
-                        canUndo = live.counter.canUndo,
-                    ),
+            Step.Active -> when {
+                window != null && window.finished.id == local.sessionId -> SessionPhase.Counting(
+                    content(window.finished, window.finished.repetitions, window.finished.timer.activeDurationMillis, canUndo = false, league)
+                        .copy(finishing = true, isPaused = false),
                 )
+                live != null -> SessionPhase.Counting(
+                    content(live.session, live.counter.reps, controller.activeMillis(live), live.counter.canUndo, league),
+                )
+                result != null && result.sessionId == local.sessionId -> SessionPhase.Result(result.sessionId)
+                else -> SessionPhase.Closed
             }
         }
-        val counting = phase is SessionPhase.Counting
+        val counting = (phase as? SessionPhase.Counting)?.content
         ExerciseSessionScreenState(
             phase = phase,
-            dialog = local.dialog.takeIf { counting },
-            correcting = local.correcting && counting,
+            dialog = local.dialog.takeIf { counting != null && !counting.finishing },
+            correcting = local.correcting && counting != null && !counting.finishing,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ExerciseSessionScreenState())
+
+    private fun content(session: ExerciseSessionEntity, reps: Int, elapsed: Long, canUndo: Boolean, league: List<LeagueEntry>) =
+        ExerciseSessionUiState(
+            type = session.type,
+            reps = reps,
+            elapsedMillis = elapsed,
+            isPaused = session.status == SessionStatus.PAUSED,
+            opponent = session.challengeLevel?.let { level -> league.firstOrNull { it.cat.level == level } },
+            canUndo = canUndo,
+        )
 
     init {
         viewModelScope.launch {
@@ -148,8 +207,9 @@ class ExerciseSessionViewModel @Inject constructor(
 
     private suspend fun begin() {
         local.update { it.copy(step = Step.Starting) }
-        controller.startVolume()
-        local.update { it.copy(step = Step.Active) }
+        // An open session always wins; a locked level gives nothing and the screen closes.
+        val live = if (level > 0) controller.startTimed(level) else controller.startVolume()
+        local.update { if (live == null) it.copy(step = Step.Closed) else it.copy(step = Step.Active, sessionId = live.session.id) }
     }
 
     fun add(amount: Int) = controller.add(amount)
@@ -160,9 +220,20 @@ class ExerciseSessionViewModel @Inject constructor(
 
     fun resume() = controller.resume()
 
+    /** Undo in the 5-second window after a timed challenge reached 1,000. */
+    fun undoFinish() {
+        viewModelScope.launch { controller.undoFinish() }
+    }
+
+    /** Finish (step-ups) or Stop challenge (timed, which asks first). */
     fun finish() {
-        if (local.value.finishing) return
-        local.update { it.copy(finishing = true) }
+        val live = controller.live.value ?: return
+        if (live.isTimed) {
+            local.update { it.copy(dialog = SessionDialog.ConfirmStop) }
+            return
+        }
+        if (local.value.busy) return
+        local.update { it.copy(busy = true) }
         viewModelScope.launch {
             try {
                 when (controller.finish()) {
@@ -170,8 +241,16 @@ class ExerciseSessionViewModel @Inject constructor(
                     FinishOutcome.NothingCounted -> local.update { it.copy(dialog = SessionDialog.DiscardEmpty) }
                 }
             } finally {
-                local.update { it.copy(finishing = false) }
+                local.update { it.copy(busy = false) }
             }
+        }
+    }
+
+    fun confirmStop() {
+        if (local.value.dialog != SessionDialog.ConfirmStop) return
+        local.update { it.copy(dialog = null) }
+        viewModelScope.launch {
+            if (controller.stopChallenge()) local.update { it.copy(step = Step.Closed) }
         }
     }
 
@@ -215,6 +294,53 @@ class ExerciseSessionViewModel @Inject constructor(
     }
 }
 
+/**
+ * The result of one timed challenge: the victory moment for a win (strictly faster than the
+ * cat), otherwise a calm "1,000 reps done". Opening a victory marks it as seen, so each win's
+ * moment is shown once.
+ */
+@HiltViewModel
+class ExerciseResultViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val repository: ExerciseRepository,
+    private val preferences: UserPreferencesRepository,
+) : ViewModel() {
+    private val sessionId: String = savedStateHandle.get<String>("sessionId").orEmpty()
+
+    private val _state = MutableStateFlow<ChallengeResultUi?>(null)
+    val state: StateFlow<ChallengeResultUi?> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch { _state.value = load() }
+    }
+
+    private suspend fun load(): ChallengeResultUi {
+        val session = repository.session(sessionId)
+        if (session == null || session.type != ExerciseSessionType.TIMED_CHALLENGE || session.status != SessionStatus.COMPLETED) {
+            return ChallengeResultUi.Missing
+        }
+        val level = repository.levels().firstOrNull { it.level == session.challengeLevel } ?: return ChallengeResultUi.Missing
+        val cat = CatRoster.forLevel(level.level) ?: return ChallengeResultUi.Missing
+        val yourMillis = session.timer.activeDurationMillis
+        val bestMillis = repository.timedBest(level.level)?.value?.coerceAtMost(yourMillis) ?: yourMillis
+        val entry = LeagueEntry(cat, level.benchmarkMillis, League.status(level), bestMillis)
+        if (yourMillis >= level.benchmarkMillis) {
+            return ChallengeResultUi.Complete(ChallengeCompleteUiState(entry, yourMillis, bestMillis))
+        }
+        val firstWin = level.beatenAt == session.endedAt
+        session.endedAt?.let { preferences.markVictorySeen(it) }
+        return ChallengeResultUi.Victory(
+            VictoryUiState(
+                beaten = entry,
+                yourMillis = yourMillis,
+                unlocked = if (firstWin) CatRoster.forLevel(level.level + 1) else null,
+                isReplay = !firstWin,
+                bestMillis = bestMillis,
+            ),
+        )
+    }
+}
+
 /** Finished sessions grouped by the day they started, with edit and delete. */
 @HiltViewModel
 class ExerciseHistoryViewModel @Inject constructor(
@@ -239,6 +365,8 @@ class ExerciseHistoryViewModel @Inject constructor(
                         HistoryRow(
                             id = session.id,
                             type = session.type,
+                            status = session.status,
+                            opponent = session.challengeLevel?.let(CatRoster::forLevel),
                             startTime = session.startedAt.atZone(session.zoneId).toLocalTime(),
                             reps = session.repetitions,
                             activeMillis = session.timer.activeDurationMillis,

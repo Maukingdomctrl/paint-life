@@ -60,6 +60,7 @@ fun ExerciseSessionContent(
     onFinish: () -> Unit,
     onCorrectCount: () -> Unit,
     onReset: () -> Unit,
+    onUndoFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = PaintLifeTheme.colors
@@ -81,10 +82,13 @@ fun ExerciseSessionContent(
                 )
             }
         }
+        if (state.finishing) {
+            item(key = "finishing") { FinishingCard(state.elapsedMillis, onUndoFinish) }
+        }
         item(key = "clock") {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 BigNumber(
-                    value = DurationFormat.clock(state.elapsedMillis),
+                    value = if (state.finishing) DurationFormat.clockTenths(state.elapsedMillis) else DurationFormat.clock(state.elapsedMillis),
                     label = stringResource(if (timed) R.string.session_clock_timed else R.string.session_clock_active),
                     style = PaintLifeTheme.numbers.large,
                     color = if (state.isPaused && !timed) colors.textSecondary else colors.text,
@@ -134,20 +138,22 @@ fun ExerciseSessionContent(
         }
         item(key = "counter") {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
-                PlusOneButton(onClick = { onAdd(1) }, enabled = !state.isPaused)
+                val counting = !state.isPaused && !state.finishing
+                PlusOneButton(onClick = { onAdd(1) }, enabled = counting)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
-                    CountButton(label = "+5", description = stringResource(R.string.session_add_reps, 5), onClick = { onAdd(5) }, enabled = !state.isPaused, modifier = Modifier.weight(1f))
-                    CountButton(label = "+10", description = stringResource(R.string.session_add_reps, 10), onClick = { onAdd(10) }, enabled = !state.isPaused, modifier = Modifier.weight(1f))
+                    CountButton(label = "+5", description = stringResource(R.string.session_add_reps, 5), onClick = { onAdd(5) }, enabled = counting, modifier = Modifier.weight(1f))
+                    CountButton(label = "+10", description = stringResource(R.string.session_add_reps, 10), onClick = { onAdd(10) }, enabled = counting, modifier = Modifier.weight(1f))
                     CountButton(
                         label = null,
                         description = stringResource(R.string.session_undo),
                         onClick = onUndo,
-                        enabled = state.canUndo,
+                        enabled = state.canUndo && !state.finishing,
                         modifier = Modifier.weight(1f),
                     )
                 }
             }
         }
+        if (state.finishing) return@PaintLifeScreen
         item(key = "controls") {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
                 if (state.isPaused) {
@@ -155,7 +161,11 @@ fun ExerciseSessionContent(
                 } else {
                     SecondaryButton(stringResource(R.string.action_pause), onPause, Modifier.weight(1f), icon = painterResource(R.drawable.ic_pause))
                 }
-                PrimaryButton(stringResource(R.string.action_finish), onFinish, Modifier.weight(1f), icon = painterResource(R.drawable.ic_flag))
+                if (timed) {
+                    SecondaryButton(stringResource(R.string.session_stop_challenge), onFinish, Modifier.weight(1f), icon = painterResource(R.drawable.ic_close))
+                } else {
+                    PrimaryButton(stringResource(R.string.action_finish), onFinish, Modifier.weight(1f), icon = painterResource(R.drawable.ic_flag))
+                }
             }
         }
         item(key = "corrections") {
@@ -163,6 +173,29 @@ fun ExerciseSessionContent(
                 QuietButton(stringResource(R.string.session_correct_count), onCorrectCount, icon = painterResource(R.drawable.ic_edit))
                 QuietButton(stringResource(R.string.session_reset), onReset, enabled = state.reps > 0)
             }
+        }
+    }
+}
+
+/** The 5-second window after a timed challenge reached 1,000: the time, and Undo for a mis-tap. */
+@Composable
+private fun FinishingCard(elapsedMillis: Long, onUndo: () -> Unit) {
+    val colors = PaintLifeTheme.colors
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("finishing")) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
+                Text(
+                    text = stringResource(R.string.session_finish_window_title, DurationFormat.clockTenths(elapsedMillis)),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.highlight,
+                )
+                Text(
+                    text = stringResource(R.string.session_finish_window_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textSecondary,
+                )
+            }
+            QuietButton(stringResource(R.string.action_undo), onUndo, icon = painterResource(R.drawable.ic_undo))
         }
     }
 }

@@ -17,6 +17,15 @@ object DurationFormat {
     }
 
     /**
+     * A result time to the tenth of a second ("27:59.9"), truncated, so a run that missed a
+     * benchmark by a fraction never displays as equal to it.
+     */
+    fun clockTenths(millis: Long): String {
+        val safe = millis.coerceAtLeast(0L)
+        return clock(safe) + "." + ((safe % 1000) / 100)
+    }
+
+    /**
      * A countdown clock: rounds up to the next whole second, so a timer shows 5:00 at the start
      * and reaches 0:00 only when time is really up.
      */

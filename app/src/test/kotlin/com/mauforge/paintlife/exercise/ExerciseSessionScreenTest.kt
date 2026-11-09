@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.lifecycle.SavedStateHandle
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -65,6 +67,7 @@ class ExerciseSessionScreenTest {
     private lateinit var preferences: UserPreferencesRepository
     private lateinit var viewModel: ExerciseSessionViewModel
     private var closed = 0
+    private val results = mutableListOf<String>()
 
     @Before
     fun setUp() {
@@ -85,18 +88,24 @@ class ExerciseSessionScreenTest {
 
     private fun string(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    private fun show(safetyRead: Boolean = true) {
+    private fun show(safetyRead: Boolean = true, level: Int = 0) {
         if (safetyRead) runBlocking { preferences.markExerciseSafetyRead() }
-        viewModel = ExerciseSessionViewModel(controller, preferences)
-        composeRule.setContent { PaintLifeTheme { ExerciseSessionScreen(onClose = { closed++ }, viewModel = viewModel) } }
+        viewModel = ExerciseSessionViewModel(SavedStateHandle(mapOf("level" to level)), controller, repository, preferences)
+        composeRule.setContent {
+            PaintLifeTheme { ExerciseSessionScreen(onClose = { closed++ }, onShowResult = { results += it }, viewModel = viewModel) }
+        }
     }
 
     private fun waitForCounter() {
         composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasTestTag("exercise_session")).fetchSemanticsNodes().isNotEmpty() }
     }
 
+    /** Querying the tree lets Main run (ViewModel coroutines, recomposition) while waiting. */
     private fun waitForReps(reps: Int) {
-        composeRule.waitUntil(5_000) { controller.live.value?.counter?.reps == reps }
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodes(hasTestTag("exercise_session")).fetchSemanticsNodes()
+            controller.live.value?.counter?.reps == reps
+        }
         composeRule.waitForIdle()
     }
 
@@ -239,5 +248,71 @@ class ExerciseSessionScreenTest {
         waitForReps(12)
         composeRule.onNodeWithContentDescription(string(R.string.session_undo)).performClick()
         waitForReps(10)
+    }
+
+    private fun confirmInDialog(label: String) {
+        composeRule.onNode(hasText(label) and hasAnyAncestor(hasTestTag("confirm_dialog"))).performClick()
+    }
+
+    @Test
+    fun aLockedCatClosesTheCounterWithoutStartingAnything() {
+        show(level = 3)
+        awaitClosed()
+        assertNull(controller.live.value)
+    }
+
+    @Test
+    fun stoppingATimedChallengeAsksFirstAndKeepsTheReps() {
+        show(level = 1)
+        waitForCounter()
+        composeRule.onNodeWithText(string(R.string.session_title_timed, "Ana")).assertIsDisplayed()
+        tapAdd(10)
+        waitForReps(10)
+        assertEquals(0, composeRule.onAllNodes(hasText(string(R.string.action_finish))).fetchSemanticsNodes().size)
+
+        scrollTo(string(R.string.session_stop_challenge))
+        composeRule.onNodeWithText(string(R.string.session_stop_challenge)).performClick()
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasTestTag("confirm_dialog")).fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithText(string(R.string.session_stop_title)).assertIsDisplayed()
+        confirmInDialog(string(R.string.session_stop_challenge))
+
+        awaitClosed()
+        val stopped = runBlocking { withTimeout(5_000) { repository.observeFinishedSessions().first() } }.single()
+        assertEquals(SessionStatus.CANCELLED, stopped.status)
+        assertEquals(10, stopped.repetitions)
+    }
+
+    @Test
+    fun reachingOneThousandOffersUndoThenTheCounterComesBack() {
+        controller.undoWindowMillis = 60_000
+        show(level = 1)
+        waitForCounter()
+        assertTrue(controller.correct(999))
+        waitForReps(999)
+
+        tapAdd(1)
+
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasTestTag("finishing")).fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithContentDescription(string(R.string.session_add_reps, 1)).assertIsNotEnabled()
+        composeRule.onNode(hasText(string(R.string.action_undo)) and hasAnyAncestor(hasTestTag("finishing"))).performClick()
+
+        waitForReps(999)
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasTestTag("finishing")).fetchSemanticsNodes().isEmpty() }
+        composeRule.onNodeWithContentDescription(string(R.string.session_add_reps, 1)).assertIsEnabled()
+    }
+
+    @Test
+    fun afterTheUndoWindowTheResultTakesOver() {
+        controller.undoWindowMillis = 200
+        show(level = 1)
+        waitForCounter()
+        val id = controller.live.value!!.session.id
+        assertTrue(controller.correct(995))
+        tapAdd(5)
+
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodes(hasTestTag("exercise_session")).fetchSemanticsNodes().isEmpty() && results == listOf(id)
+        }
+        assertEquals(0, closed)
     }
 }

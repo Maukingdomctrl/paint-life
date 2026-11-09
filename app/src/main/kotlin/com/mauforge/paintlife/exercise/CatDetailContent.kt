@@ -32,6 +32,7 @@ import com.mauforge.paintlife.core.designsystem.component.BigNumber
 import com.mauforge.paintlife.core.designsystem.component.PaintLifeScreen
 import com.mauforge.paintlife.core.designsystem.component.PrimaryButton
 import com.mauforge.paintlife.core.designsystem.component.SecondaryButton
+import com.mauforge.paintlife.core.designsystem.component.rememberReducedMotion
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.core.time.DurationFormat
 import com.mauforge.paintlife.exercise.cats.CatAvatar
@@ -50,6 +51,8 @@ fun CatDetailContent(
     previous: CatProfile?,
     onStartTimedChallenge: () -> Unit,
     modifier: Modifier = Modifier,
+    /** False while another session is open: Start / Replay wait until it is finished. */
+    canStart: Boolean = true,
 ) {
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
@@ -106,12 +109,21 @@ fun CatDetailContent(
         }
         when (entry.status) {
             LevelStatus.Current -> item(key = "start") {
-                PrimaryButton(stringResource(R.string.action_start_timed), onStartTimedChallenge, Modifier.fillMaxWidth())
+                PrimaryButton(stringResource(R.string.action_start_timed), onStartTimedChallenge, Modifier.fillMaxWidth(), enabled = canStart)
             }
             LevelStatus.Beaten -> item(key = "replay") {
-                SecondaryButton(stringResource(R.string.action_replay_level), onStartTimedChallenge, Modifier.fillMaxWidth())
+                SecondaryButton(stringResource(R.string.action_replay_level), onStartTimedChallenge, Modifier.fillMaxWidth(), enabled = canStart)
             }
             LevelStatus.Locked -> Unit
+        }
+        if (!canStart && entry.status != LevelStatus.Locked) {
+            item(key = "blocked") {
+                Text(
+                    text = stringResource(R.string.league_finish_open_first),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                )
+            }
         }
         item(key = "disclaimer") {
             Text(text = stringResource(R.string.league_disclaimer), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
@@ -121,19 +133,22 @@ fun CatDetailContent(
 
 /**
  * The single celebration moment: an amber ring sweeps once around the beaten cat. With system
- * animations turned off the ring simply appears complete.
+ * animations turned off ([reducedMotion]) the ring simply appears complete.
  */
 @Composable
 fun VictoryContent(
     state: VictoryUiState,
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
+    reducedMotion: Boolean = rememberReducedMotion(),
 ) {
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
     val name = stringResource(state.beaten.cat.nameRes)
-    val sweep = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { sweep.animateTo(1f, tween(durationMillis = 1200, easing = FastOutSlowInEasing)) }
+    val sweep = remember { Animatable(if (reducedMotion) 1f else 0f) }
+    LaunchedEffect(reducedMotion) {
+        if (reducedMotion) sweep.snapTo(1f) else sweep.animateTo(1f, tween(durationMillis = 1200, easing = FastOutSlowInEasing))
+    }
     val margin = state.beaten.benchmarkMillis - state.yourMillis
     PaintLifeScreen(modifier = modifier.testTag("victory"), verticalSpacing = spacing.lg) {
         item(key = "ring") {
@@ -160,8 +175,8 @@ fun VictoryContent(
         }
         item(key = "time") {
             BigNumber(
-                value = DurationFormat.clock(state.yourMillis),
-                label = stringResource(R.string.victory_margin, DurationFormat.clock(margin), DurationFormat.clock(state.beaten.benchmarkMillis)),
+                value = DurationFormat.clockTenths(state.yourMillis),
+                label = stringResource(R.string.victory_margin, DurationFormat.clockTenths(margin), DurationFormat.clock(state.beaten.benchmarkMillis)),
                 style = PaintLifeTheme.numbers.large,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth(),
@@ -169,8 +184,11 @@ fun VictoryContent(
         }
         item(key = "unlocked") {
             Text(
-                text = state.unlocked?.let { stringResource(R.string.victory_unlocked, stringResource(it.nameRes)) }
-                    ?: stringResource(R.string.victory_champion),
+                text = when {
+                    state.isReplay -> stringResource(R.string.victory_replay, name, DurationFormat.clockTenths(state.bestMillis))
+                    state.unlocked != null -> stringResource(R.string.victory_unlocked, stringResource(state.unlocked.nameRes))
+                    else -> stringResource(R.string.victory_champion)
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center,

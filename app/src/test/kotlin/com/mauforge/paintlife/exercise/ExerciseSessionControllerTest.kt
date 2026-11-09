@@ -177,7 +177,7 @@ class ExerciseSessionControllerTest {
     @Test
     fun startingTwiceAtOnceGivesOneSession() {
         val ids = blocking {
-            CoroutineScope(Dispatchers.Default).run { List(5) { async { controller.startVolume().session.id } }.awaitAll() }
+            CoroutineScope(Dispatchers.Default).run { List(5) { async { controller.startVolume()!!.session.id } }.awaitAll() }
         }
         assertEquals(1, ids.toSet().size)
         assertEquals(1, blocking { app.db.exerciseDao().openSessions() }.size)
@@ -223,7 +223,7 @@ class ExerciseSessionControllerTest {
         controller.add(3)
         blocking { controller.finish() }
 
-        val stale = started.session.copy(repetitions = 99, status = SessionStatus.RUNNING)
+        val stale = started!!.session.copy(repetitions = 99, status = SessionStatus.RUNNING)
         assertFalse(blocking { app.repository.saveProgress(stale) })
 
         val row = stored().single()
@@ -239,7 +239,7 @@ class ExerciseSessionControllerTest {
 
         controller.reset()
 
-        assertEquals(started.session.id, live!!.session.id)
+        assertEquals(started!!.session.id, live!!.session.id)
         assertEquals(0, live!!.counter.reps)
         assertFalse(live!!.counter.canUndo)
         assertEquals(0L, controller.activeMillis(live!!))

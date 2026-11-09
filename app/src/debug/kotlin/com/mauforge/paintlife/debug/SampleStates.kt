@@ -2,6 +2,8 @@ package com.mauforge.paintlife.debug
 
 import com.mauforge.paintlife.core.database.SeedData
 import com.mauforge.paintlife.exercise.ActiveSessionSummary
+import com.mauforge.paintlife.exercise.ChallengeCompleteUiState
+import com.mauforge.paintlife.core.database.SessionStatus
 import com.mauforge.paintlife.exercise.ExerciseHistoryUiState
 import com.mauforge.paintlife.exercise.HistoryDay
 import com.mauforge.paintlife.exercise.HistoryEditorUi
@@ -195,11 +197,8 @@ object ExerciseSamples {
     )
     val timedPaused = timedRunning.copy(isPaused = true, elapsedMillis = minutes(19, 5))
 
-    /** What release builds show in Part 4a: real volume, the league not wired yet. */
-    val leagueComing = ExerciseUiState(lifetimeReps = 215, league = emptyList(), activeSession = null, hasReadSafety = true, leagueReady = false)
-
     /** A session left open last night, restored as paused. */
-    val restoredOvernight = leagueComing.copy(
+    val restoredOvernight = midway.copy(
         activeSession = ActiveSessionSummary(
             ExerciseSessionType.VOLUME,
             reps = 40,
@@ -218,17 +217,24 @@ object ExerciseSamples {
             HistoryDay(
                 historyToday,
                 listOf(
-                    HistoryRow("h1", ExerciseSessionType.VOLUME, LocalTime.of(18, 40), 120, minutes(11, 2), "Felt easy, longer next time."),
-                    HistoryRow("h2", ExerciseSessionType.VOLUME, LocalTime.of(7, 15), 60, minutes(5, 30), null),
+                    HistoryRow("h1", ExerciseSessionType.VOLUME, SessionStatus.COMPLETED, null, LocalTime.of(18, 40), 120, minutes(11, 2), "Felt easy, longer next time."),
+                    HistoryRow("t1", ExerciseSessionType.TIMED_CHALLENGE, SessionStatus.COMPLETED, CatRoster.forLevel(3), LocalTime.of(12, 5), 1_000, minutes(27, 48) + 300, null),
+                    HistoryRow("h2", ExerciseSessionType.VOLUME, SessionStatus.COMPLETED, null, LocalTime.of(7, 15), 60, minutes(5, 30), null),
                 ),
             ),
             HistoryDay(
                 historyToday.minusDays(1),
-                listOf(HistoryRow("h3", ExerciseSessionType.VOLUME, LocalTime.of(23, 50), 85, minutes(9, 12), "Ran past midnight; counts on the day it started.")),
+                listOf(
+                    HistoryRow("h3", ExerciseSessionType.VOLUME, SessionStatus.COMPLETED, null, LocalTime.of(23, 50), 85, minutes(9, 12), "Ran past midnight; counts on the day it started."),
+                    HistoryRow("t2", ExerciseSessionType.TIMED_CHALLENGE, SessionStatus.CANCELLED, CatRoster.forLevel(3), LocalTime.of(19, 0), 640, minutes(18, 2), "Legs said no today."),
+                ),
             ),
             HistoryDay(
                 historyToday.minusDays(5),
-                listOf(HistoryRow("h4", ExerciseSessionType.VOLUME, LocalTime.of(17, 5), 1, minutes(0, 20), null)),
+                listOf(
+                    HistoryRow("h4", ExerciseSessionType.VOLUME, SessionStatus.COMPLETED, null, LocalTime.of(17, 5), 1, minutes(0, 20), null),
+                    HistoryRow("t3", ExerciseSessionType.TIMED_CHALLENGE, SessionStatus.INCOMPLETE, CatRoster.forLevel(3), LocalTime.of(6, 30), 410, minutes(11, 0), null),
+                ),
             ),
         ),
     )
@@ -251,6 +257,10 @@ object ExerciseSamples {
 
     val victory = VictoryUiState(beaten = midway.league[2], yourMillis = minutes(27, 48), unlocked = CatRoster.forLevel(4))
     val victoryChampion = VictoryUiState(beaten = allBeaten.league[9], yourMillis = minutes(20, 51), unlocked = null)
+    val victoryReplay = VictoryUiState(beaten = midway.league[0], yourMillis = minutes(28, 30), unlocked = null, isReplay = true, bestMillis = minutes(28, 30))
+
+    val completeSlower = ChallengeCompleteUiState(opponent = midway.league[2], yourMillis = minutes(28, 0) + 400, bestMillis = minutes(28, 0) + 400)
+    val completeTie = ChallengeCompleteUiState(opponent = midway.league[2], yourMillis = minutes(28, 0), bestMillis = minutes(28, 0))
 }
 
 object QuietSamples {

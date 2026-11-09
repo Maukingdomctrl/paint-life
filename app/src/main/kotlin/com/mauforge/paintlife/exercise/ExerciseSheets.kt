@@ -39,9 +39,9 @@ import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 
-/** Digits only, up to 5 of them; null when empty or out of 0..[SessionCounter.MAX_REPS]. */
-internal fun parseReps(text: String): Int? =
-    text.takeIf { it.isNotEmpty() && it.length <= 5 && it.all(Char::isDigit) }?.toInt()?.takeIf { it in 0..SessionCounter.MAX_REPS }
+/** Digits only, up to 5 of them; null when empty or out of 0..[max]. */
+internal fun parseReps(text: String, max: Int = SessionCounter.MAX_REPS): Int? =
+    text.takeIf { it.isNotEmpty() && it.length <= 5 && it.all(Char::isDigit) }?.toInt()?.takeIf { it in 0..max }
 
 /** A count field: number keyboard, digits only, with the allowed range always shown. */
 @Composable
@@ -50,14 +50,15 @@ private fun RepsField(
     onValueChange: (TextFieldValue) -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    max: Int = SessionCounter.MAX_REPS,
 ) {
-    val invalid = value.text.isNotEmpty() && parseReps(value.text) == null
+    val invalid = value.text.isNotEmpty() && parseReps(value.text, max) == null
     OutlinedTextField(
         value = value,
         onValueChange = { next -> if (next.text.length <= 5 && next.text.all(Char::isDigit)) onValueChange(next) },
         label = { Text(stringResource(R.string.reps_field_label)) },
         supportingText = {
-            Text(stringResource(R.string.reps_field_range, NumberFormat.getIntegerInstance().format(SessionCounter.MAX_REPS)))
+            Text(stringResource(R.string.reps_field_range, NumberFormat.getIntegerInstance().format(max)))
         },
         isError = invalid,
         singleLine = true,
@@ -71,17 +72,22 @@ private fun RepsField(
 
 /** Set the session's count by hand. Undo on the counter puts the previous count back. */
 @Composable
-fun CorrectCountSheet(currentReps: Int, onSave: (Int) -> Unit, onDismiss: () -> Unit) {
+fun CorrectCountSheet(currentReps: Int, maxReps: Int, onSave: (Int) -> Unit, onDismiss: () -> Unit) {
     PaintLifeSheet(onDismiss = onDismiss, modifier = Modifier.testTag("correct_count_sheet")) {
-        CorrectCountBody(currentReps, onSave)
+        CorrectCountBody(currentReps, onSave, maxReps = maxReps)
     }
 }
 
 @Composable
-internal fun CorrectCountBody(currentReps: Int, onSave: (Int) -> Unit, modifier: Modifier = Modifier) {
+internal fun CorrectCountBody(
+    currentReps: Int,
+    onSave: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    maxReps: Int = SessionCounter.MAX_REPS,
+) {
     val initial = currentReps.toString()
     var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length))) }
-    val reps = parseReps(value.text)
+    val reps = parseReps(value.text, maxReps)
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(PaintLifeTheme.spacing.lg)) {
@@ -95,7 +101,7 @@ internal fun CorrectCountBody(currentReps: Int, onSave: (Int) -> Unit, modifier:
             style = MaterialTheme.typography.bodyMedium,
             color = PaintLifeTheme.colors.textSecondary,
         )
-        RepsField(value, { value = it }, onDone = { reps?.let(onSave) }, Modifier.focusRequester(focusRequester))
+        RepsField(value, { value = it }, onDone = { reps?.let(onSave) }, Modifier.focusRequester(focusRequester), max = maxReps)
         PrimaryButton(
             text = stringResource(R.string.action_save),
             onClick = { reps?.let(onSave) },

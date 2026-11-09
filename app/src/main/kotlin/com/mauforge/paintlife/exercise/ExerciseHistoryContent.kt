@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mauforge.paintlife.R
+import com.mauforge.paintlife.core.database.SessionStatus
 import com.mauforge.paintlife.core.designsystem.component.EmptyState
 import com.mauforge.paintlife.core.designsystem.component.PaintLifeScreen
 import com.mauforge.paintlife.core.designsystem.component.SectionHeader
@@ -113,6 +114,9 @@ private fun HistorySessionRow(row: HistoryRow, onClick: () -> Unit) {
                 ),
                 style = MaterialTheme.typography.bodyLarge,
             )
+            timedLabel(row)?.let {
+                Text(text = it, style = MaterialTheme.typography.bodyMedium, color = colors.highlight)
+            }
             row.note?.let {
                 Text(
                     text = it,
@@ -124,6 +128,19 @@ private fun HistorySessionRow(row: HistoryRow, onClick: () -> Unit) {
             }
         }
         Icon(painterResource(R.drawable.ic_edit), contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** What a timed challenge came to, naming the cat; null for step-up sessions. */
+@Composable
+private fun timedLabel(row: HistoryRow): String? {
+    if (row.type != ExerciseSessionType.TIMED_CHALLENGE) return null
+    val cat = row.opponent?.let { stringResource(it.nameRes) } ?: return null
+    return when (row.status) {
+        SessionStatus.COMPLETED -> stringResource(R.string.history_timed_completed, cat, DurationFormat.clockTenths(row.activeMillis))
+        SessionStatus.CANCELLED -> stringResource(R.string.history_timed_stopped, cat, pluralStringResource(R.plurals.reps, row.reps, row.reps))
+        SessionStatus.INCOMPLETE -> stringResource(R.string.history_timed_interrupted, cat)
+        SessionStatus.RUNNING, SessionStatus.PAUSED -> null
     }
 }
 

@@ -49,9 +49,6 @@ import java.time.format.DateTimeFormatter
 /**
  * Exercise tab: the volume goal, an open session if there is one, safety guidance, and the
  * Paint Life Cat League. Timed challenges are always optional. Stateless.
- *
- * Until the league is wired ([ExerciseUiState.leagueReady] false) the tab says so in place of
- * the ladder, rather than showing controls that do nothing.
  */
 @Composable
 fun ExerciseContent(
@@ -79,10 +76,6 @@ fun ExerciseContent(
         item(key = "safety") { SafetyCard(expanded = !state.hasReadSafety, onOpenSafety = onOpenSafety) }
         item(key = "history") {
             QuietButton(text = stringResource(R.string.history_open), onClick = onOpenHistory, icon = painterResource(R.drawable.ic_chevron_right))
-        }
-        if (!state.leagueReady) {
-            item(key = "league_coming") { LeagueComingCard() }
-            return@PaintLifeScreen
         }
         item(key = "league_title") {
             SectionHeader(
@@ -260,19 +253,6 @@ private fun CurrentOpponent(entry: LeagueEntry, canStart: Boolean, onStart: () -
             style = MaterialTheme.typography.bodySmall,
             color = colors.textSecondary,
             modifier = Modifier.padding(top = spacing.sm),
-        )
-    }
-}
-
-@Composable
-private fun LeagueComingCard() {
-    PaintLifeCard(Modifier.fillMaxWidth().testTag("league_coming")) {
-        Text(text = stringResource(R.string.league_title), style = MaterialTheme.typography.titleLarge)
-        Text(
-            text = stringResource(R.string.league_coming_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = PaintLifeTheme.colors.textSecondary,
-            modifier = Modifier.padding(top = PaintLifeTheme.spacing.xs),
         )
     }
 }

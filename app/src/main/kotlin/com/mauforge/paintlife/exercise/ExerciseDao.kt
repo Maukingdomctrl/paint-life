@@ -70,4 +70,47 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercise_session WHERE status NOT IN ('RUNNING', 'PAUSED') ORDER BY startedAt DESC, id")
     fun observeFinishedSessions(): Flow<List<ExerciseSessionEntity>>
+
+    @Query("SELECT * FROM challenge_level ORDER BY level")
+    fun observeLevels(): Flow<List<ChallengeLevelEntity>>
+
+    @Query("SELECT * FROM challenge_level ORDER BY level")
+    suspend fun levels(): List<ChallengeLevelEntity>
+
+    @Query("SELECT * FROM challenge_level WHERE level = :level")
+    suspend fun level(level: Int): ChallengeLevelEntity?
+
+    @Update
+    suspend fun updateLevel(level: ChallengeLevelEntity)
+
+    @Query("SELECT * FROM personal_best WHERE kind = 'TIMED_CHALLENGE_TIME' ORDER BY challengeLevel")
+    fun observeTimedBests(): Flow<List<PersonalBestEntity>>
+
+    @Query("SELECT * FROM personal_best WHERE `key` = :key")
+    suspend fun personalBest(key: String): PersonalBestEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPersonalBest(best: PersonalBestEntity)
+
+    /** The fastest completed 1,000-rep run at [level] (earliest first on a tie). */
+    @Query(
+        "SELECT * FROM exercise_session WHERE type = 'TIMED_CHALLENGE' AND status = 'COMPLETED' " +
+            "AND challengeLevel = :level ORDER BY activeDurationMillis, endedAt, id LIMIT 1",
+    )
+    suspend fun fastestCompleted(level: Int): ExerciseSessionEntity?
+
+    /** The first completed run at [level] strictly faster than [benchmarkMillis]. */
+    @Query(
+        "SELECT * FROM exercise_session WHERE type = 'TIMED_CHALLENGE' AND status = 'COMPLETED' " +
+            "AND challengeLevel = :level AND activeDurationMillis < :benchmarkMillis ORDER BY endedAt, id LIMIT 1",
+    )
+    suspend fun firstWin(level: Int, benchmarkMillis: Long): ExerciseSessionEntity?
+
+    /** The newest completed run that beat its cat's benchmark and ended after [after]. */
+    @Query(
+        "SELECT s.* FROM exercise_session s JOIN challenge_level l ON s.challengeLevel = l.level " +
+            "WHERE s.type = 'TIMED_CHALLENGE' AND s.status = 'COMPLETED' AND s.activeDurationMillis < l.benchmarkMillis " +
+            "AND s.endedAt > :after ORDER BY s.endedAt DESC LIMIT 1",
+    )
+    fun observeLatestWinAfter(after: Instant): Flow<ExerciseSessionEntity?>
 }

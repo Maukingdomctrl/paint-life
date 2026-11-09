@@ -7,6 +7,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import com.mauforge.paintlife.exercise.CatDetailScreen
+import com.mauforge.paintlife.exercise.ChallengeResultScreen
 import com.mauforge.paintlife.exercise.ExerciseHistoryScreen
 import com.mauforge.paintlife.exercise.ExerciseSafetyScreen
 import com.mauforge.paintlife.exercise.ExerciseScreen
@@ -32,13 +34,34 @@ fun PaintLifeNavHost(
         navigation<ExerciseGraph>(startDestination = ExerciseRoute) {
             composable<ExerciseRoute> {
                 ExerciseScreen(
-                    onOpenSession = { navController.navigate(ExerciseSessionRoute) { launchSingleTop = true } },
+                    onOpenSession = { navController.navigate(ExerciseSessionRoute()) { launchSingleTop = true } },
+                    onStartTimedChallenge = { level -> navController.navigate(ExerciseSessionRoute(level)) { launchSingleTop = true } },
+                    onOpenCat = { level -> navController.navigate(ExerciseCatRoute(level)) { launchSingleTop = true } },
+                    onOpenResult = { id -> navController.navigate(ExerciseResultRoute(id)) { launchSingleTop = true } },
                     onOpenSafety = { navController.navigate(ExerciseSafetyRoute) { launchSingleTop = true } },
                     onOpenHistory = { navController.navigate(ExerciseHistoryRoute) { launchSingleTop = true } },
                 )
             }
+            composable<ExerciseCatRoute> {
+                CatDetailScreen(
+                    onStartTimedChallenge = { level -> navController.navigate(ExerciseSessionRoute(level)) { launchSingleTop = true } },
+                )
+            }
             composable<ExerciseSessionRoute> {
-                ExerciseSessionScreen(onClose = { navController.popIfOn<ExerciseSessionRoute>() })
+                ExerciseSessionScreen(
+                    onClose = { navController.popIfOn<ExerciseSessionRoute>() },
+                    // The result replaces the counter, so Back from it returns to where the challenge started.
+                    onShowResult = { id ->
+                        if (navController.currentBackStackEntry?.destination?.hasRoute<ExerciseSessionRoute>() == true) {
+                            navController.navigate(ExerciseResultRoute(id)) {
+                                popUpTo<ExerciseSessionRoute> { inclusive = true }
+                            }
+                        }
+                    },
+                )
+            }
+            composable<ExerciseResultRoute> {
+                ChallengeResultScreen(onContinue = { navController.popIfOn<ExerciseResultRoute>() })
             }
             composable<ExerciseSafetyRoute> {
                 ExerciseSafetyScreen(onDone = { navController.popIfOn<ExerciseSafetyRoute>() })
@@ -54,7 +77,7 @@ fun PaintLifeNavHost(
 /** Today's quick action: the Exercise tab, then straight into the counter (resuming an open session). */
 private fun NavHostController.openExerciseSession() {
     navigateToTopLevel(TopLevelDestination.EXERCISE)
-    navigate(ExerciseSessionRoute) { launchSingleTop = true }
+    navigate(ExerciseSessionRoute()) { launchSingleTop = true }
 }
 
 /** Pops only if [T] is on top, so a late or repeated close never pops another screen. */

@@ -14,8 +14,16 @@ data object ExerciseGraph
 @Serializable
 data object ExerciseRoute
 
+/** The counter. [level] 0 continues the open session or starts step-ups; 1-10 starts that cat's challenge. */
 @Serializable
-data object ExerciseSessionRoute
+data class ExerciseSessionRoute(val level: Int = 0)
+
+@Serializable
+data class ExerciseCatRoute(val level: Int)
+
+/** The result of one timed challenge (victory or "1,000 reps done"). */
+@Serializable
+data class ExerciseResultRoute(val sessionId: String)
 
 @Serializable
 data object ExerciseSafetyRoute

@@ -3,6 +3,8 @@ package com.mauforge.paintlife.exercise
 import androidx.compose.runtime.Immutable
 import com.mauforge.paintlife.exercise.cats.CatAvatarState
 import com.mauforge.paintlife.exercise.cats.CatProfile
+import com.mauforge.paintlife.exercise.cats.CatRoster
+import com.mauforge.paintlife.core.database.SessionStatus
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -47,8 +49,6 @@ data class ExerciseUiState(
     /** False until the user has read the safety guidance once; it is then shown collapsed. */
     val hasReadSafety: Boolean,
     val volumeGoal: Int = VOLUME_GOAL,
-    /** False until the Cat League is wired to real data; the tab then says so instead of showing it. */
-    val leagueReady: Boolean = true,
 ) {
     val currentOpponent: LeagueEntry? get() = league.firstOrNull { it.status == LevelStatus.Current }
     val levelsBeaten: Int get() = league.count { it.status == LevelStatus.Beaten }
@@ -72,7 +72,12 @@ data class ExerciseSessionUiState(
     val targetReps: Int = TIMED_TARGET_REPS,
     /** Whether Undo has an action to revert. */
     val canUndo: Boolean = reps > 0,
+    /** A timed challenge just reached 1,000: the clock has stopped and Undo can still take the tap back. */
+    val finishing: Boolean = false,
 ) {
+    /** Highest count a correction may set. */
+    val maxReps: Int get() = if (type == ExerciseSessionType.TIMED_CHALLENGE) targetReps else SessionCounter.MAX_REPS
+
     val repsRemaining: Int get() = (targetReps - reps).coerceAtLeast(0)
 
     companion object {
@@ -85,9 +90,54 @@ data class ExerciseSessionUiState(
 data class VictoryUiState(
     val beaten: LeagueEntry,
     val yourMillis: Long,
-    /** The cat this win unlocked; null after beating Champion. */
+    /** The cat this win unlocked; null after beating Champion, or on a replay. */
     val unlocked: CatProfile?,
+    /** The cat had been beaten before: nothing new unlocks, the best time may improve. */
+    val isReplay: Boolean = false,
+    /** The level's best time after this run. */
+    val bestMillis: Long = yourMillis,
 )
+
+/** 1,000 reps finished, but not faster than the cat (slower, or a tie). No celebration. */
+@Immutable
+data class ChallengeCompleteUiState(
+    val opponent: LeagueEntry,
+    val yourMillis: Long,
+    val bestMillis: Long,
+) {
+    val isTie: Boolean get() = yourMillis == opponent.benchmarkMillis
+}
+
+/** The screen after a timed challenge's result has been applied. */
+sealed interface ChallengeResultUi {
+    data class Victory(val state: VictoryUiState) : ChallengeResultUi
+
+    data class Complete(val state: ChallengeCompleteUiState) : ChallengeResultUi
+
+    /** The session no longer exists or is not a finished challenge; the screen closes. */
+    data object Missing : ChallengeResultUi
+}
+
+/** Cat detail: the cat, the one before it (for the locked hint), and whether a challenge can start now. */
+@Immutable
+data class CatDetailUi(val entry: LeagueEntry, val previous: CatProfile?, val canStart: Boolean)
+
+/** Maps stored levels and best times onto the ladder. */
+object League {
+    fun entries(levels: List<ChallengeLevelEntity>, bests: List<PersonalBestEntity>): List<LeagueEntry> {
+        val bestByLevel = bests.associate { it.challengeLevel to it.value }
+        return levels.sortedBy { it.level }.mapNotNull { level ->
+            val cat = CatRoster.forLevel(level.level) ?: return@mapNotNull null
+            LeagueEntry(cat, level.benchmarkMillis, status(level), bestByLevel[level.level])
+        }
+    }
+
+    fun status(level: ChallengeLevelEntity): LevelStatus = when {
+        level.beatenAt != null -> LevelStatus.Beaten
+        level.isUnlocked -> LevelStatus.Current
+        else -> LevelStatus.Locked
+    }
+}
 
 /** What the counter route is showing. */
 sealed interface SessionPhase {
@@ -98,11 +148,14 @@ sealed interface SessionPhase {
 
     data class Counting(val content: ExerciseSessionUiState) : SessionPhase
 
+    /** A timed challenge's result was applied: the result screen takes over. */
+    data class Result(val sessionId: String) : SessionPhase
+
     /** The session was finished or discarded; the screen closes. */
     data object Closed : SessionPhase
 }
 
-enum class SessionDialog { ConfirmReset, DiscardEmpty }
+enum class SessionDialog { ConfirmReset, DiscardEmpty, ConfirmStop }
 
 @Immutable
 data class ExerciseSessionScreenState(
@@ -119,6 +172,9 @@ data class ExerciseSessionScreenState(
 data class HistoryRow(
     val id: String,
     val type: ExerciseSessionType,
+    val status: SessionStatus,
+    /** The cat a timed challenge was against. */
+    val opponent: CatProfile?,
     val startTime: LocalTime,
     val reps: Int,
     val activeMillis: Long,

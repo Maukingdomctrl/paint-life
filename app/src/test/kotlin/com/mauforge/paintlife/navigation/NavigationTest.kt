@@ -3,6 +3,7 @@ package com.mauforge.paintlife.navigation
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -70,14 +71,22 @@ class NavigationTest {
     }
 
     @Test
-    fun exerciseTabIsTheRealScreenAndSaysTheLeagueIsNotWiredYet() {
+    fun exerciseTabShowsTheLeagueAndALadderRowOpensTheCat() {
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).performClick()
         waitForTag("exercise_content")
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).assertIsSelected()
         composeRule.onNodeWithText(context.getString(R.string.volume_lifetime)).assertIsDisplayed()
-        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasTestTag("league_coming"))
-        composeRule.onNodeWithTag("league_coming").assertIsDisplayed()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(context.getString(R.string.league_next_opponent)))
+        composeRule.onNodeWithText(context.getString(R.string.league_next_opponent)).assertIsDisplayed()
         assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+
+        val mia = hasText(context.getString(R.string.cat_mia_name)) and hasClickAction()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(mia)
+        composeRule.onNode(mia).performClick()
+        waitForTag("cat_detail")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).assertIsSelected()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(context.getString(R.string.cat_locked_hint, "Ana")))
+        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.action_start_timed))).fetchSemanticsNodes().size)
     }
 
     @Test

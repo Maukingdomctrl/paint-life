@@ -48,6 +48,7 @@ import com.mauforge.paintlife.core.designsystem.component.Tray
 import com.mauforge.paintlife.core.designsystem.component.TrayDivider
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.exercise.CatDetailContent
+import com.mauforge.paintlife.exercise.ChallengeCompleteContent
 import com.mauforge.paintlife.exercise.CorrectCountBody
 import com.mauforge.paintlife.exercise.ExerciseContent
 import com.mauforge.paintlife.exercise.ExerciseHistoryContent
@@ -107,7 +108,7 @@ private fun sheet(id: String, title: String, body: @Composable () -> Unit) = Gal
 }
 
 private fun session(id: String, title: String, state: ExerciseSessionUiState) = GalleryEntry(id, "Exercise", title) {
-    ExerciseSessionContent(state, {}, {}, {}, {}, {}, {}, {})
+    ExerciseSessionContent(state, {}, {}, {}, {}, {}, {}, {}, {})
 }
 
 private fun cat(id: String, title: String, entry: LeagueEntry) = GalleryEntry(id, "Exercise", title) {
@@ -148,17 +149,26 @@ val galleryEntries: List<GalleryEntry> = listOf(
     exercise("exercise_midway", "Two cats beaten", ExerciseSamples.midway),
     exercise("exercise_restored", "Session restored after closing", ExerciseSamples.restoredSession),
     exercise("exercise_all", "All cats beaten", ExerciseSamples.allBeaten),
-    exercise("exercise_league_coming", "Iteration 4a: league not wired yet", ExerciseSamples.leagueComing),
     exercise("exercise_restored_overnight", "Session restored from yesterday", ExerciseSamples.restoredOvernight),
     session("session_volume", "Counter, running", ExerciseSamples.volumeRunning),
     session("session_volume_paused", "Counter, paused", ExerciseSamples.volumePaused),
     session("session_timed", "Timed challenge, running", ExerciseSamples.timedRunning),
     session("session_timed_paused", "Timed challenge, paused", ExerciseSamples.timedPaused),
+    session(
+        "session_timed_finishing",
+        "Timed challenge, 1,000 reached (undo window)",
+        ExerciseSamples.timedRunning.copy(reps = 1_000, elapsedMillis = 27 * 60_000L + 48_300L, finishing = true, canUndo = false),
+    ),
     cat("cat_current", "Cat detail, current", ExerciseSamples.catCurrent),
     cat("cat_beaten", "Cat detail, beaten", ExerciseSamples.catBeaten),
     cat("cat_locked", "Cat detail, locked", ExerciseSamples.catLocked),
     victory("victory", "Victory", ExerciseSamples.victory),
     victory("victory_champion", "Victory over Champion", ExerciseSamples.victoryChampion),
+    victory("victory_replay", "Victory on a replay", ExerciseSamples.victoryReplay),
+    GalleryEntry("complete_slower", "Exercise", "1,000 reps, slower than the cat") {
+        ChallengeCompleteContent(ExerciseSamples.completeSlower, onContinue = {})
+    },
+    GalleryEntry("complete_tie", "Exercise", "1,000 reps, a tie") { ChallengeCompleteContent(ExerciseSamples.completeTie, onContinue = {}) },
     GalleryEntry("safety", "Exercise", "Safety guidance") { SafetyGuidanceContent(onDone = {}) },
     sheet("correct_count", "Correct count sheet") { CorrectCountBody(currentReps = 120, onSave = {}) },
     history("history", "Session history", ExerciseSamples.history),

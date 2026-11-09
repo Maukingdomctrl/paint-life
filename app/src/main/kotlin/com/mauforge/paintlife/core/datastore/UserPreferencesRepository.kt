@@ -5,11 +5,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
+import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,8 +51,20 @@ class UserPreferencesRepository @Inject constructor(
         dataStore.edit { prefs -> prefs[EXERCISE_SAFETY_READ] = true }
     }
 
+    /** Wins that ended at or before this instant have had their victory moment. */
+    val victorySeenUpTo: Flow<Instant> = data.map { prefs -> Instant.ofEpochMilli(prefs[VICTORY_SEEN_UP_TO] ?: 0L) }
+
+    /** Records that the victory for a win that ended at [endedAt] has been shown. Never moves back. */
+    suspend fun markVictorySeen(endedAt: Instant) {
+        dataStore.edit { prefs ->
+            val current = prefs[VICTORY_SEEN_UP_TO] ?: 0L
+            prefs[VICTORY_SEEN_UP_TO] = maxOf(current, endedAt.toEpochMilli())
+        }
+    }
+
     private companion object {
         val FIRST_LAUNCH_DATE = stringPreferencesKey("first_launch_date")
         val EXERCISE_SAFETY_READ = booleanPreferencesKey("exercise_safety_read")
+        val VICTORY_SEEN_UP_TO = longPreferencesKey("victory_seen_up_to")
     }
 }

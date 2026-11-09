@@ -131,7 +131,7 @@ class ExerciseRepositoryTest {
         val done = finishedSession(reps = 10)
         val open = runBlocking { repository.startVolumeSession(SessionTimer.checkpoint(SessionTimer.started(0, 1), 20_000, 1)) }
 
-        val recovered = runBlocking { repository.recoverOpenSessions() }!!
+        val recovered = runBlocking { repository.recoverOpenSessions(now = 900_000, boot = 1) }!!
 
         assertEquals(open.id, recovered.id)
         assertEquals(SessionStatus.PAUSED, recovered.status)
@@ -143,7 +143,7 @@ class ExerciseRepositoryTest {
     @Test
     fun recoveryWithNothingOpenDoesNothing() {
         finishedSession(reps = 10)
-        assertNull(runBlocking { repository.recoverOpenSessions() })
+        assertNull(runBlocking { repository.recoverOpenSessions(now = 900_000, boot = 1) })
     }
 
     @Test
