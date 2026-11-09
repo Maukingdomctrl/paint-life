@@ -6,8 +6,31 @@ import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.DayMoment
 import com.mauforge.paintlife.exercise.ExerciseDayTotals
 import com.mauforge.paintlife.exercise.ExerciseRepository
+import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
+import com.mauforge.paintlife.core.time.TimeProvider
+import com.mauforge.paintlife.mytime.ActivityCategoryEntity
+import com.mauforge.paintlife.mytime.CurrentActivityEntity
+import com.mauforge.paintlife.mytime.DayView
+import com.mauforge.paintlife.mytime.EntryDraft
+import com.mauforge.paintlife.mytime.EntryWithCategory
+import com.mauforge.paintlife.mytime.LogRequest
+import com.mauforge.paintlife.mytime.MyTimeLaunch
+import com.mauforge.paintlife.mytime.RunResult
+import com.mauforge.paintlife.mytime.SaveResult
+import com.mauforge.paintlife.mytime.TimeEntryKind
+import com.mauforge.paintlife.mytime.TimeRepository
+import com.mauforge.paintlife.mytime.TimeRules
+import com.mauforge.paintlife.mytime.TimelineGeometry
+import com.mauforge.paintlife.mytime.Resolution
+import com.mauforge.paintlife.mytime.activityLabel
 import com.mauforge.paintlife.quiet.QuietDayTotals
 import com.mauforge.paintlife.quiet.QuietRepository
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +58,10 @@ class TodayViewModel @Inject constructor(
     private val repository: TodayRepository,
     private val exercise: ExerciseRepository,
     private val quiet: QuietRepository,
+    private val time: TimeRepository,
+    private val launch: MyTimeLaunch,
+    private val preferences: UserPreferencesRepository,
+    private val clock: TimeProvider,
     dayClock: DayClock,
 ) : ViewModel() {
 
@@ -50,6 +77,20 @@ class TodayViewModel @Inject constructor(
         val carryingOver: Boolean = false,
         val undo: PendingUndo? = null,
         val notice: TodayNotice? = null,
+        val openMyTime: Long? = null,
+        val sleepBusy: Boolean = false,
+    )
+
+    /** Today's recorded time, read in the zone the day is shown in. */
+    private data class TimeData(
+        val date: LocalDate,
+        val zone: ZoneId,
+        val entries: List<EntryWithCategory>,
+        val current: CurrentActivityEntity?,
+        val categories: List<ActivityCategoryEntity>,
+        val sleepLogged: Boolean,
+        val sleepDismissed: Boolean,
+        val sleep: Pair<Instant, Instant>,
     )
 
     private data class DayData(
@@ -78,10 +119,32 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    val state: StateFlow<TodayScreenState> = combine(moment, dayData, local, ::toScreenState)
+    /** Re-reads "now" twice a minute for the strip and the running activity (display only). */
+    private val ticks: Flow<Instant> = flow {
+        while (true) {
+            emit(clock.now())
+            delay(TICK_MS)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val timeData: Flow<TimeData> = moment.map { it.date }.distinctUntilChanged().flatMapLatest { date ->
+        val zone = clock.zone()
+        combine(
+            time.observeDayEntries(date),
+            combine(time.observeCurrent(), time.observeCategories(), ::Pair),
+            time.observeSleepLogged(date, zone),
+            preferences.sleepCardDismissedOn,
+            flow { emit(time.sleepPrefill(date, zone)) },
+        ) { entries, (current, categories), sleepLogged, dismissedOn, sleep ->
+            TimeData(date, zone, entries, current, categories, sleepLogged, dismissedOn == date, sleep)
+        }
+    }
+
+    val state: StateFlow<TodayScreenState> = combine(moment, dayData, timeData, ticks, local, ::toScreenState)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), TodayScreenState())
 
-    private fun toScreenState(moment: DayMoment, data: DayData, local: Local): TodayScreenState {
+    private fun toScreenState(moment: DayMoment, data: DayData, time: TimeData, now: Instant, local: Local): TodayScreenState {
         val items = data.priorities.map { PriorityItem(it.id, it.title, it.isCompleted) }
         val freePlaces = TodayRepository.MAX_PRIORITIES_PER_DAY - items.size
         val content = TodayUiState(
@@ -100,8 +163,8 @@ class TodayViewModel @Inject constructor(
             exercise = ExerciseToday(reps = data.exercise.reps, sessions = data.exercise.sessions),
             // Quiet sessions count on the day they started; only finished ones add minutes.
             quiet = QuietToday(completed = data.quiet.completed, minutes = data.quiet.minutes, fill = data.quiet.fill),
-            quickActions = listOf(QuickAction.StartExercise, QuickAction.QuietTime),
-        )
+            quickActions = listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime),
+        ).withTime(time, now)
         val editor = when (val editor = local.editor) {
             null -> null
             Editor.New -> if (content.canAddPriority || local.saving) PriorityEditorUi(null, "", false, false, local.saving) else null
@@ -117,7 +180,106 @@ class TodayViewModel @Inject constructor(
             carryOverPickerOpen = local.carryOverPickerOpen && content.carryOver != null,
             undo = local.undo,
             notice = local.notice,
+            openMyTime = local.openMyTime,
         )
+    }
+
+    /** Adds today's time: swatch, strip, running activity and the sleep card. Split at local midnight. */
+    private fun TodayUiState.withTime(time: TimeData, now: Instant): TodayUiState {
+        if (time.date != date) return this
+        val onDay = DayView.onDay(time.entries, time.date, time.zone)
+        val nowMinute = DayView.minuteOfDay(now, time.date, time.zone)
+        val morning = now.atZone(time.zone).toLocalTime() < TimeRules.MORNING_ENDS
+        val current = time.current
+        val category = current?.let { running -> time.categories.firstOrNull { it.id == running.categoryId } }
+        return copy(
+            timeByCategory = DayView.categoryTotals(onDay, time.date, time.zone).map { CategoryMinutes(it.categoryName, it.colorKey, it.minutes.toInt()) },
+            strip = DayView.stretches(onDay, time.date, time.zone, nowMinute).map { TodayStripBlock(it.startMinute, it.endMinute, it.colorKey) },
+            dayLengthMinutes = TimelineGeometry.dayLengthMinutes(time.date, time.zone),
+            sleepCard = if (morning && !time.sleepLogged && !time.sleepDismissed) {
+                SleepCardUi(TimeRules.wallTime(time.sleep.first, time.zone).text, TimeRules.wallTime(time.sleep.second, time.zone).text)
+            } else {
+                null
+            },
+            nowDoing = if (current != null && category != null) {
+                NowDoingToday(activityLabel(category.name, current.note), category.colorKey, Duration.between(current.startAt, now).toMinutes().coerceAtLeast(0))
+            } else {
+                null
+            },
+        )
+    }
+
+    // Time
+
+    /** "Log time": My Time opens its sheet from where the last entry ended to now. */
+    fun logTime() {
+        launch.open(LogRequest.SinceLastEntry)
+        openMyTime()
+    }
+
+    /** Logs last night's sleep as offered. If it overlaps something, My Time asks what to do. */
+    fun logSleep() = withSleep { draft ->
+        when (val result = time.save(draft, Resolution.None)) {
+            is SaveResult.Saved -> notify(TodayNotice.Kind.SleepLogged)
+            is SaveResult.Overlaps -> {
+                launch.open(LogRequest.Draft(draft, result.fit))
+                openMyTime()
+            }
+            SaveResult.Invalid, SaveResult.Missing -> {
+                launch.open(LogRequest.Draft(draft))
+                openMyTime()
+            }
+        }
+    }
+
+    /** Opens last night's sleep in My Time's sheet to change the times. */
+    fun adjustSleep() = withSleep { draft ->
+        launch.open(LogRequest.Draft(draft))
+        openMyTime()
+    }
+
+    fun dismissSleep() {
+        val date = state.value.content?.date ?: return
+        viewModelScope.launch { preferences.dismissSleepCard(date) }
+    }
+
+    private fun withSleep(block: suspend (EntryDraft) -> Unit) {
+        val date = state.value.content?.date ?: return
+        if (local.value.sleepBusy) return
+        local.update { it.copy(sleepBusy = true) }
+        viewModelScope.launch {
+            try {
+                val (start, end) = time.sleepPrefill(date, clock.zone())
+                block(EntryDraft(null, TimeEntryKind.ACTUAL, TimeRules.SLEEP_ID, null, start, end))
+            } finally {
+                local.update { it.copy(sleepBusy = false) }
+            }
+        }
+    }
+
+    /** Stops the running activity. If it needs the user (very long, or overlapping), My Time asks. */
+    fun stopNow() {
+        viewModelScope.launch {
+            when (val result = time.stopCurrent()) {
+                is RunResult.Done -> Unit
+                is RunResult.ConfirmEnd -> {
+                    launch.open(LogRequest.Draft(result.draft, confirmingRunning = true))
+                    openMyTime()
+                }
+                is RunResult.Overlaps -> {
+                    launch.open(LogRequest.Draft(result.draft, result.fit))
+                    openMyTime()
+                }
+            }
+        }
+    }
+
+    fun myTimeOpened(token: Long) {
+        local.update { if (it.openMyTime == token) it.copy(openMyTime = null) else it }
+    }
+
+    private fun openMyTime() {
+        local.update { it.copy(openMyTime = ++nextToken) }
     }
 
     fun openNewPriority() {
@@ -233,5 +395,6 @@ class TodayViewModel @Inject constructor(
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+        const val TICK_MS = 30_000L
     }
 }

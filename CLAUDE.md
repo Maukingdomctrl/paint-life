@@ -60,6 +60,16 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - Actual entries never overlap. If saving one would overlap, offer to trim or replace the neighbouring entry. Planned entries are a separate layer.
 - A "distraction" is any category with a distraction flag, which the user can change. Phone/internet and Entertainment have it on by default.
 - The first 7 days are observation. Suggested schedules always need the user's approval.
+- Observation ends once 7 days each have at least 1 hour of actual time recorded. Insights (where time went, unrecorded time, distractions, hourly patterns, Suggest a schedule) unlock only then. The banner shows "N of 7 days recorded".
+- Entries are stored to the whole minute and last from 1 minute to 24 hours. Time pickers move in 5-minute steps and "now" is rounded to 5 minutes. A running activity records to the minute.
+- Planned entries never overlap other planned entries. The two layers are independent.
+- Overlaps: a neighbour that overlaps partly can be trimmed, one that is completely covered is replaced, and a new entry inside a longer one splits it in two. The sheet lists every affected entry, and an Undo snackbar follows.
+- Unrecorded time is every minute not covered by an actual entry: all of a past day (23 or 25 hours on DST days), and today up to now.
+- Any past day can be corrected. Nothing is locked.
+- Fast logging: tap a gap to fill it; "Log since last entry" (end of the last entry to now) on Today and My Time; a running "now doing" activity; recent activities (the last 6 distinct category + note pairs) as one-tap chips.
+- Running "now doing": starting a new activity ends and saves the current one at that moment. Stopping or switching one that has run more than 16 hours asks the user to confirm its end time first.
+- Sleep: each morning until sleep is logged, Today offers "Log last night's sleep", prefilled from the median of the last 7 logged sleeps (23:00 to 07:00 at first). It can be dismissed.
+- Categories are the spec's 11 fixed ones. Only the distraction flag can be changed. Today's flag applies to all past days.
 
 ## Destructive actions
 - Small deletions that are easy to put back (for example, deleting one priority) happen at once and show an Undo snackbar. No confirmation dialog.

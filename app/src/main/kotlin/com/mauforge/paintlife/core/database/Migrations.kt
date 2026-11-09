@@ -15,4 +15,5 @@ fun allMigrations(zone: () -> ZoneId): Array<Migration> = arrayOf(
     Migration1To2(zone),
     Migration2To3(zone),
     Migration3To4(),
+    Migration4To5(zone),
 )

@@ -18,7 +18,6 @@
     <string name="not_built_badge">Not built yet</string>
     <string name="coming_in_iteration">Coming in Iteration %1$d</string>
     <string name="not_built_note">Nothing on this screen is recorded or calculated yet.</string>
-    <string name="coming_my_time">A 24-hour timeline for recording where your day actually goes.</string>
     <string name="coming_progress">Reports for today, the last seven days, this month and last month.</string>
 
     <!-- Shared actions -->
@@ -305,8 +304,8 @@
     <string name="my_time_layer_actual">Actual</string>
     <string name="my_time_layer_planned">Planned</string>
     <string name="my_time_layer_both">Both</string>
-    <string name="my_time_observation_title">Day %1$d of 7: just record</string>
-    <string name="my_time_observation_body">For the first week, note what you actually do. No plans or targets yet.</string>
+    <string name="my_time_observation_title">%1$d of 7 days recorded</string>
+    <string name="my_time_observation_body">For your first week, just record what you actually do. No plans or targets yet. Insights come once 7 days each have an hour recorded.</string>
     <string name="my_time_insights_title">Your first week is in</string>
     <string name="my_time_insights_body">See where your time went, then build a schedule from it if you want one.</string>
     <string name="my_time_see_insights">See where time went</string>
@@ -322,10 +321,44 @@
     <string name="my_time_next_day_suffix">%1$s next day</string>
     <string name="my_time_duration">Duration: %1$s</string>
     <string name="overlap_title">This overlaps another entry</string>
-    <string name="overlap_body">%1$s (%2$s) overlaps %3$s (%4$s). Actual entries can\'t overlap, so choose what to keep.</string>
-    <string name="overlap_trim">Trim %1$s to %2$s</string>
-    <string name="overlap_replace">Replace %1$s</string>
+    <string name="overlap_body">%1$s (%2$s) overlaps these entries. Actual entries can\'t overlap, so choose what happens to them.</string>
     <string name="overlap_go_back">Go back and change the times</string>
+    <string name="overlap_outcome_trimmed">Keeps %1$s</string>
+    <string name="overlap_outcome_split">Split: keeps %1$s and %2$s</string>
+    <string name="overlap_outcome_removed">Replaced</string>
+    <string name="overlap_fit">Fit it in</string>
+    <string name="overlap_replace_all">Replace them</string>
+    <string name="action_log_since_last">Log since last entry</string>
+    <string name="my_time_zone_note">Times shown in %1$s</string>
+    <string name="now_doing_title">Now doing</string>
+    <string name="now_doing_running">Now: %1$s</string>
+    <string name="now_doing_since">Since %1$s · %2$s</string>
+    <string name="now_doing_start">Start something now</string>
+    <string name="now_doing_switch">Switch to</string>
+    <string name="action_stop_now">Stop</string>
+    <string name="my_time_gap_description">Not recorded, %1$s to %2$s. Activate to log this time.</string>
+    <string name="my_time_confirm_title">When did it end?</string>
+    <string name="my_time_confirm_body">This has been running for over 16 hours. Set when it really ended before it\'s saved.</string>
+    <string name="action_discard_running">Don\'t save it</string>
+    <string name="my_time_recent">Recent</string>
+    <string name="my_time_note">Note (optional)</string>
+    <string name="my_time_first_occurrence">%1$s (1st)</string>
+    <string name="my_time_second_occurrence">%1$s (2nd)</string>
+    <string name="my_time_earlier_hour">%1$s an hour earlier</string>
+    <string name="my_time_earlier_five">%1$s 5 minutes earlier</string>
+    <string name="my_time_later_five">%1$s 5 minutes later</string>
+    <string name="my_time_later_hour">%1$s an hour later</string>
+    <string name="my_time_deleted">Entry deleted</string>
+    <string name="my_time_fitted">Saved. Overlapping entries were changed.</string>
+    <string name="my_time_notice_invalid">An entry is 1 minute to 24 hours long.</string>
+    <string name="my_time_notice_missing">That entry no longer exists.</string>
+    <string name="my_time_notice_undo_failed">Couldn\'t undo. Those entries have changed since.</string>
+    <string name="today_sleep_title">Log last night\'s sleep</string>
+    <string name="today_sleep_body">%1$s to %2$s</string>
+    <string name="action_log_it">Log it</string>
+    <string name="action_adjust">Adjust</string>
+    <string name="today_sleep_logged">Sleep logged</string>
+    <string name="today_now_doing">Now: %1$s · %2$s</string>
 
     <!-- Progress -->
     <string name="progress_period_today">Today</string>

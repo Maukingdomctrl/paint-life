@@ -69,10 +69,26 @@ class UserPreferencesRepository @Inject constructor(
         dataStore.edit { prefs -> prefs[QUIET_NOTIFICATIONS_ASKED] = true }
     }
 
+    /** True once My Time's observation week is over (7 days with an hour recorded); never reset. */
+    val myTimeObservationComplete: Flow<Boolean> = data.map { prefs -> prefs[MY_TIME_OBSERVATION_COMPLETE] == true }
+
+    suspend fun markMyTimeObservationComplete() {
+        dataStore.edit { prefs -> prefs[MY_TIME_OBSERVATION_COMPLETE] = true }
+    }
+
+    /** The local date the "Log last night's sleep" card was last dismissed on. */
+    val sleepCardDismissedOn: Flow<LocalDate?> = data.map { prefs -> prefs[SLEEP_CARD_DISMISSED_ON]?.let(LocalDate::parse) }
+
+    suspend fun dismissSleepCard(date: LocalDate) {
+        dataStore.edit { prefs -> prefs[SLEEP_CARD_DISMISSED_ON] = date.toString() }
+    }
+
     private companion object {
         val FIRST_LAUNCH_DATE = stringPreferencesKey("first_launch_date")
         val EXERCISE_SAFETY_READ = booleanPreferencesKey("exercise_safety_read")
         val VICTORY_SEEN_UP_TO = longPreferencesKey("victory_seen_up_to")
         val QUIET_NOTIFICATIONS_ASKED = booleanPreferencesKey("quiet_notifications_asked")
+        val MY_TIME_OBSERVATION_COMPLETE = booleanPreferencesKey("my_time_observation_complete")
+        val SLEEP_CARD_DISMISSED_ON = stringPreferencesKey("sleep_card_dismissed_on")
     }
 }

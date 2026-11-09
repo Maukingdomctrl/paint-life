@@ -32,6 +32,7 @@ fun PaintLifeNavHost(
             TodayScreen(
                 onStartExercise = { navController.openExerciseSession() },
                 onOpenQuiet = { navController.navigateToTopLevel(TopLevelDestination.QUIET) },
+                onOpenMyTime = { navController.navigateToTopLevel(TopLevelDestination.MY_TIME) },
             )
         }
         navigation<ExerciseGraph>(startDestination = ExerciseRoute) {

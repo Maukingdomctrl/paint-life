@@ -7,6 +7,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
 import com.mauforge.paintlife.exercise.ExerciseRepository
 import com.mauforge.paintlife.quiet.QuietRepository
+import com.mauforge.paintlife.mytime.MyTimeLaunch
+import com.mauforge.paintlife.mytime.TimeRepository
+import com.mauforge.paintlife.testing.testPreferences
 import com.mauforge.paintlife.core.time.DayPart
 import com.mauforge.paintlife.core.time.SessionTimer
 import com.mauforge.paintlife.testing.TestTime
@@ -50,6 +53,7 @@ class TodayViewModelTest {
     private lateinit var repository: TodayRepository
     private lateinit var viewModel: TodayViewModel
     private lateinit var collector: Job
+    private val launch = MyTimeLaunch()
 
     @Before
     fun setUp() {
@@ -57,7 +61,16 @@ class TodayViewModelTest {
         Dispatchers.setMain(main)
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), PaintLifeDatabase::class.java).build()
         repository = TodayRepository(db, time.provider)
-        viewModel = TodayViewModel(repository, ExerciseRepository(db, time.provider), QuietRepository(db, time.provider), time.dayClock)
+        viewModel = TodayViewModel(
+            repository,
+            ExerciseRepository(db, time.provider),
+            QuietRepository(db, time.provider),
+            TimeRepository(db, time.provider),
+            launch,
+            testPreferences(ApplicationProvider.getApplicationContext()),
+            time.provider,
+            time.dayClock,
+        )
         // The screen collects state while visible; do the same here.
         collector = CoroutineScope(main).launch { viewModel.state.collect { } }
     }
@@ -90,13 +103,14 @@ class TodayViewModelTest {
     }
 
     @Test
-    fun exerciseAndQuietAreTrackedTimeIsNotYetAndTheirActionsAreOffered() {
-        val content = awaitState { it.content != null }.content!!
+    fun everyAreaIsTrackedAndEveryActionIsOffered() {
+        val content = awaitState { it.content?.strip != null }.content!!
         assertEquals(ExerciseToday(reps = 0, sessions = 0), content.exercise)
         assertEquals(QuietToday(completed = false, minutes = 0, fill = 0f), content.quiet)
-        assertNull(content.timeByCategory)
-        assertNull(content.strip)
-        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime), content.quickActions)
+        assertEquals(emptyList<CategoryMinutes>(), content.timeByCategory)
+        // 09:00 with nothing recorded: the whole morning is one unrecorded stretch.
+        assertEquals(listOf(TodayStripBlock(0, 540, null)), content.strip)
+        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime), content.quickActions)
     }
 
     @Test
@@ -241,7 +255,7 @@ class TodayViewModelTest {
         val state = awaitState { it.content?.exercise?.reps == 40 }
         // The open session has no reps yet, so it doesn't paint the day.
         assertEquals(ExerciseToday(reps = 40, sessions = 1), state.content!!.exercise)
-        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime), state.content.quickActions)
+        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime), state.content.quickActions)
 
         time.setLocal(day.plusDays(1).atTime(0, 1))
         time.announceChange()

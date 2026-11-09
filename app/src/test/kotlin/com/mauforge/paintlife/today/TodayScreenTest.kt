@@ -7,6 +7,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -25,8 +26,13 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.R
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
+import com.mauforge.paintlife.core.database.SeedCallback
 import com.mauforge.paintlife.exercise.ExerciseRepository
 import com.mauforge.paintlife.quiet.QuietRepository
+import com.mauforge.paintlife.mytime.LogRequest
+import com.mauforge.paintlife.mytime.MyTimeLaunch
+import com.mauforge.paintlife.mytime.TimeRepository
+import com.mauforge.paintlife.testing.testPreferences
 import com.mauforge.paintlife.core.time.SessionTimer
 import com.mauforge.paintlife.core.time.TimerCheckpoint
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
@@ -51,15 +57,19 @@ class TodayScreenTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val day: LocalDate = LocalDate.of(2026, 11, 9)
-    private val time = TestTime(day.atTime(9, 0), ZoneId.of("Asia/Kolkata"))
+    // Afternoon by default, so the morning sleep card is out of the way; its own tests set the morning.
+    private val time = TestTime(day.atTime(15, 0), ZoneId.of("Asia/Kolkata"))
     private lateinit var db: PaintLifeDatabase
     private lateinit var repository: TodayRepository
     private var exerciseOpened = 0
+    private var myTimeOpened = 0
+    private val launch = MyTimeLaunch()
     private var quietOpened = 0
 
     @Before
     fun setUp() {
-        db = Room.inMemoryDatabaseBuilder(context, PaintLifeDatabase::class.java).build()
+        // Seeded, so the built-in categories (Sleep for the morning card) exist.
+        db = Room.inMemoryDatabaseBuilder(context, PaintLifeDatabase::class.java).addCallback(SeedCallback).build()
         repository = TodayRepository(db, time.provider)
     }
 
@@ -69,8 +79,17 @@ class TodayScreenTest {
     }
 
     private fun show() {
-        val viewModel = TodayViewModel(repository, ExerciseRepository(db, time.provider), QuietRepository(db, time.provider), time.dayClock)
-        composeRule.setContent { PaintLifeTheme { TodayScreen(onStartExercise = { exerciseOpened++ }, onOpenQuiet = { quietOpened++ }, viewModel = viewModel) } }
+        val viewModel = TodayViewModel(
+            repository,
+            ExerciseRepository(db, time.provider),
+            QuietRepository(db, time.provider),
+            TimeRepository(db, time.provider),
+            launch,
+            testPreferences(ApplicationProvider.getApplicationContext()),
+            time.provider,
+            time.dayClock,
+        )
+        composeRule.setContent { PaintLifeTheme { TodayScreen(onStartExercise = { exerciseOpened++ }, onOpenQuiet = { quietOpened++ }, onOpenMyTime = { myTimeOpened++ }, viewModel = viewModel) } }
     }
 
     private fun string(id: Int, vararg args: Any): String = context.getString(id, *args)
@@ -200,6 +219,29 @@ class TodayScreenTest {
     }
 
     @Test
+    fun undoOnAFullDayExplainsWhyItCouldNotPutThePriorityBack() {
+        runBlocking { listOf("Walk", "Read", "Call").forEach { repository.add(day, it) } }
+        show()
+        waitFor(hasText("Call"))
+
+        val edit = hasContentDescription(string(R.string.today_edit_priority, "Call"))
+        scrollTo(edit)
+        composeRule.onNode(edit).performClick()
+        waitFor(hasText(string(R.string.today_delete_priority)))
+        composeRule.onNodeWithText(string(R.string.today_delete_priority)).performClick()
+        waitFor(hasText(string(R.string.today_deleted, "Call")))
+        composeRule.waitUntil(5_000) { stored().size == 2 }
+
+        // The day fills up again before Undo is tapped.
+        runBlocking { repository.add(day, "Cook") }
+        composeRule.onNodeWithText(string(R.string.action_undo)).performClick()
+
+        // The notice must actually appear, not be cleared before it is shown.
+        waitFor(hasText(string(R.string.today_notice_restore_failed)))
+        assertEquals(listOf("Walk", "Read", "Cook"), stored().map { it.title })
+    }
+
+    @Test
     fun aFullDayOffersNoAddButton() {
         runBlocking { repeat(3) { repository.add(day, "P$it") } }
         show()
@@ -209,28 +251,59 @@ class TodayScreenTest {
     }
 
     @Test
-    fun onlyTimeIsNotTrackedYetAndTheExerciseAndQuietActionsAreOffered() {
+    fun everyAreaIsTrackedAndEveryQuickActionWorks() {
         show()
         waitFor(hasTestTag("today_content"))
 
         listOf("swatch_exercise", "swatch_quiet", "swatch_time").forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
-        // Exercise and quiet time are tracked now; time is not yet.
-        assertEquals(1, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
-        // Scroll to the end so every section that exists has been composed.
+        assertEquals(0, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
         val exerciseAction = hasText(string(R.string.action_start_exercise)) and hasClickAction()
         val quietAction = hasText(string(R.string.action_quiet_time)) and hasClickAction()
-        scrollTo(quietAction)
-        listOf(R.string.today_so_far, R.string.action_log_time).forEach {
-            assertEquals(string(it), 0, composeRule.onAllNodes(hasText(string(it)), useUnmergedTree = true).fetchSemanticsNodes().size)
-        }
+        val logAction = hasText(string(R.string.action_log_time)) and hasClickAction()
+        scrollTo(hasText(string(R.string.today_so_far)))
 
+        scrollTo(exerciseAction)
         composeRule.onNode(exerciseAction).performClick()
         composeRule.onNode(quietAction).performClick()
-        composeRule.waitForIdle()
+        composeRule.onNode(logAction).performClick()
+        composeRule.waitUntil(5_000) { myTimeOpened == 1 }
         assertEquals(1, exerciseOpened)
         assertEquals(1, quietOpened)
+        // My Time is asked to open its sheet from the last entry to now.
+        assertEquals(LogRequest.SinceLastEntry, launch.request.value)
+    }
+
+    @Test
+    fun theMorningSleepCardLogsLastNightInOneTap() {
+        time.setLocal(day.atTime(8, 30))
+        show()
+        waitFor(hasTestTag("today_sleep_card"))
+        composeRule.onNodeWithText(string(R.string.today_sleep_body, "23:00", "07:00")).assertExists()
+
+        val logIt = hasText(string(R.string.action_log_it)) and hasClickAction()
+        scrollTo(logIt)
+        composeRule.onNode(logIt).performClick()
+
+        // The confirmation is short-lived, so it is checked first.
+        waitFor(hasText(string(R.string.today_sleep_logged)))
+        waitForNo(hasTestTag("today_sleep_card"))
+        val sleep = runBlocking { TimeRepository(db, time.provider).observeDayEntries(day).first() }.single().entry
+        assertEquals("sleep", sleep.categoryId)
+        assertEquals(day.minusDays(1).atTime(23, 0).atZone(time.zone).toInstant(), sleep.startAt)
+        assertEquals(day.atTime(7, 0).atZone(time.zone).toInstant(), sleep.endAt)
+    }
+
+    @Test
+    fun notNowHidesTheSleepCardForTheDay() {
+        time.setLocal(day.atTime(8, 30))
+        show()
+        waitFor(hasTestTag("today_sleep_card"))
+        val notNow = hasText(string(R.string.action_not_now)) and hasClickAction() and hasAnyAncestor(hasTestTag("today_sleep_card"))
+        scrollTo(notNow)
+        composeRule.onNode(notNow).performClick()
+        waitForNo(hasTestTag("today_sleep_card"))
     }
 
     @Test

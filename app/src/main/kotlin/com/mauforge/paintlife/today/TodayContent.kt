@@ -71,11 +71,17 @@ fun TodayContent(
     onDismissCarryOver: () -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     modifier: Modifier = Modifier,
+    onLogSleep: () -> Unit = {},
+    onAdjustSleep: () -> Unit = {},
+    onDismissSleep: () -> Unit = {},
+    onStopNow: () -> Unit = {},
 ) {
     val spacing = PaintLifeTheme.spacing
     PaintLifeScreen(modifier = modifier.testTag("today_content")) {
         item(key = "header") { TodayHeader(state) }
         item(key = "canvas") { TodayCanvas(state) }
+        state.nowDoing?.let { running -> item(key = "now_doing") { NowDoingCard(running, onStopNow) } }
+        state.sleepCard?.let { sleep -> item(key = "sleep") { SleepCard(sleep, onLogSleep, onAdjustSleep, onDismissSleep) } }
         item(key = "priorities") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
                 SectionHeader(
@@ -98,6 +104,48 @@ fun TodayContent(
             item(key = "actions") { QuickActions(state.quickActions, onQuickAction) }
         }
         state.strip?.let { strip -> item(key = "strip") { TodaySoFar(strip, state.dayLengthMinutes) } }
+    }
+}
+
+/** The running "now doing" activity, with Stop. */
+@Composable
+private fun NowDoingCard(running: NowDoingToday, onStop: () -> Unit) {
+    val colors = PaintLifeTheme.colors
+    val spacing = PaintLifeTheme.spacing
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("today_now_doing")) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+            Box(Modifier.size(12.dp).clip(PaintLifeTheme.shapes.bar).background(colors.category(running.colorKey)))
+            Text(
+                text = stringResource(R.string.today_now_doing, running.label, DurationFormat.hoursMinutes(running.elapsedMinutes.toInt())),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        SecondaryButton(
+            text = stringResource(R.string.action_stop_now),
+            onClick = onStop,
+            modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
+        )
+    }
+}
+
+/** Each morning until it is logged: last night's sleep, prefilled, one tap to log. */
+@Composable
+private fun SleepCard(sleep: SleepCardUi, onLog: () -> Unit, onAdjust: () -> Unit, onDismiss: () -> Unit) {
+    val spacing = PaintLifeTheme.spacing
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("today_sleep_card")) {
+        Text(text = stringResource(R.string.today_sleep_title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = stringResource(R.string.today_sleep_body, sleep.startLabel, sleep.endLabel),
+            style = PaintLifeTheme.numbers.small,
+            color = PaintLifeTheme.colors.textSecondary,
+            modifier = Modifier.padding(top = spacing.xxs, bottom = spacing.sm),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+            PrimaryButton(stringResource(R.string.action_log_it), onLog, Modifier.weight(1f))
+            SecondaryButton(stringResource(R.string.action_adjust), onAdjust, Modifier.weight(1f))
+        }
+        QuietButton(stringResource(R.string.action_not_now), onDismiss, Modifier.fillMaxWidth())
     }
 }
 

@@ -65,8 +65,20 @@ class MigrationTest {
     }
 
     @Test
+    fun version4MigratesToTheExportedVersion5Schema() {
+        helper.createDatabase(4).close()
+        helper.runMigrationsAndValidate(5, migrations).close()
+    }
+
+    @Test
+    fun version1MigratesAllTheWayToVersion5() {
+        helper.createDatabase(1).close()
+        helper.runMigrationsAndValidate(5, migrations).close()
+    }
+
+    @Test
     fun everyVersionAfterOneHasAMigration() {
-        val currentVersion = 4
+        val currentVersion = 5
         val covered = migrations.map { it.startVersion to it.endVersion }.toSet()
         val required = (1 until currentVersion).map { it to it + 1 }.toSet()
         assertEquals(required, covered)
@@ -180,6 +192,56 @@ class MigrationTest {
                         "FROM quiet_session ORDER BY id",
                 ),
             )
+        }
+    }
+
+    @Test
+    fun timeEntriesAndSchedulesSurviveVersion5WithZones() {
+        helper.createDatabase(4).use { db ->
+            db.execSQL(
+                "INSERT INTO activity_category (id, name, colorKey, isDistraction, sortOrder, isBuiltIn, isArchived) VALUES " +
+                    "('sleep', 'Sleep', 'night', 0, 9, 1, 0), ('work', 'Work', 'slate', 0, 2, 1, 0)",
+            )
+            db.execSQL(
+                "INSERT INTO time_entry (id, kind, categoryId, startAt, endAt, zoneId, note, createdAt, updatedAt) VALUES " +
+                    "('night', 'ACTUAL', 'sleep', 1000, 29800000, 'Europe/London', NULL, 30000000, 30000000), " +
+                    "('plan', 'PLANNED', 'work', 40000000, 43600000, 'Asia/Tokyo', 'deep work', 100, 200)",
+            )
+            db.execSQL(
+                "INSERT INTO daily_schedule (id, name, status, createdAt, approvedAt, updatedAt) VALUES " +
+                    "('s1', 'Weekdays', 'APPROVED', 10, 20, 30), ('s2', 'Idea', 'PROPOSED', 40, NULL, 50)",
+            )
+            db.execSQL(
+                "INSERT INTO schedule_block (id, scheduleId, categoryId, startMinuteOfDay, endMinuteOfDay, daysOfWeekMask) VALUES " +
+                    "('b1', 's1', 'work', 540, 1020, 31)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(5, migrations).use { db ->
+            assertEquals(
+                listOf(
+                    listOf("night", "ACTUAL", "sleep", "1000", "29800000", "Europe/London", "Europe/London", null, "30000000", "Europe/London", "30000000", "Europe/London"),
+                    listOf("plan", "PLANNED", "work", "40000000", "43600000", "Asia/Tokyo", "Asia/Tokyo", "deep work", "100", "Asia/Tokyo", "200", "Asia/Tokyo"),
+                ),
+                db.rows(
+                    "SELECT id, kind, categoryId, startAt, endAt, zoneId, endZoneId, note, createdAt, createdZoneId, updatedAt, " +
+                        "updatedZoneId FROM time_entry ORDER BY id",
+                ),
+            )
+            assertEquals(
+                listOf(
+                    listOf("s1", "Weekdays", "APPROVED", "10", "Asia/Kolkata", "20", "Asia/Kolkata", "30", "Asia/Kolkata", null, null, null, null),
+                    listOf("s2", "Idea", "PROPOSED", "40", "Asia/Kolkata", null, null, "50", "Asia/Kolkata", null, null, null, null),
+                ),
+                db.rows(
+                    "SELECT id, name, status, createdAt, createdZoneId, approvedAt, approvedZoneId, updatedAt, updatedZoneId, " +
+                        "activeFrom, activeUntil, basedOnFrom, basedOnTo FROM daily_schedule ORDER BY id",
+                ),
+            )
+            // The block still belongs to its schedule, and every foreign key holds.
+            assertEquals(listOf(listOf("b1", "s1")), db.rows("SELECT id, scheduleId FROM schedule_block"))
+            assertEquals(emptyList<List<String?>>(), db.rows("PRAGMA foreign_key_check"))
+            assertEquals(listOf(listOf("0")), db.rows("SELECT COUNT(*) FROM current_activity"))
         }
     }
 

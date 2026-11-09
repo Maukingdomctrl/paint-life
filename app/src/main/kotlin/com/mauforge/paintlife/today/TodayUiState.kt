@@ -18,6 +18,14 @@ data class ExerciseToday(val reps: Int, val sessions: Int)
 @Immutable
 data class QuietToday(val completed: Boolean, val minutes: Int, val fill: Float)
 
+/** "Log last night's sleep": the prefilled times. */
+@Immutable
+data class SleepCardUi(val startLabel: String, val endLabel: String)
+
+/** The running "now doing" activity, shown with Stop. */
+@Immutable
+data class NowDoingToday(val label: String, val colorKey: String, val elapsedMinutes: Long)
+
 /** Minutes of one category recorded today, used to paint the Time swatch in category colours. */
 @Immutable
 data class CategoryMinutes(val categoryName: String, val colorKey: String, val minutes: Int)
@@ -58,6 +66,9 @@ data class TodayUiState(
     /** Null until My Time is built (Iteration 6); the strip is hidden until then. */
     val strip: List<TodayStripBlock>? = null,
     val quickActions: List<QuickAction> = emptyList(),
+    /** Set each morning until last night's sleep is logged (or the card is dismissed). */
+    val sleepCard: SleepCardUi? = null,
+    val nowDoing: NowDoingToday? = null,
     /** Length of today in minutes (1380/1440/1500 around DST changes). */
     val dayLengthMinutes: Int = 1440,
 ) {
@@ -87,7 +98,7 @@ data class PendingUndo(val token: Long, val title: String)
 /** One-off message about something that could not be done. */
 @Immutable
 data class TodayNotice(val token: Long, val kind: Kind) {
-    enum class Kind { LimitReached, RestoreFailed }
+    enum class Kind { LimitReached, RestoreFailed, SleepLogged }
 }
 
 /** The whole screen: content (null while loading) plus the sheets and messages over it. */
@@ -98,4 +109,6 @@ data class TodayScreenState(
     val carryOverPickerOpen: Boolean = false,
     val undo: PendingUndo? = null,
     val notice: TodayNotice? = null,
+    /** Set when My Time should open (it has a sheet waiting); [token] identifies the request. */
+    val openMyTime: Long? = null,
 )

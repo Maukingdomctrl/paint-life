@@ -19,7 +19,11 @@ import com.mauforge.paintlife.mytime.CategoryOption
 import com.mauforge.paintlife.mytime.LogActivityUiState
 import com.mauforge.paintlife.mytime.MinuteSpan
 import com.mauforge.paintlife.mytime.MyTimeUiState
+import com.mauforge.paintlife.mytime.NowDoingUi
+import com.mauforge.paintlife.mytime.OverlapOutcome
+import com.mauforge.paintlife.mytime.OverlapRow
 import com.mauforge.paintlife.mytime.OverlapUiState
+import com.mauforge.paintlife.mytime.QuickActivity
 import com.mauforge.paintlife.mytime.TimeLayer
 import com.mauforge.paintlife.mytime.TimelineBlock
 import com.mauforge.paintlife.mytime.TimelineGeometry
@@ -41,6 +45,7 @@ import com.mauforge.paintlife.today.ExerciseToday
 import com.mauforge.paintlife.today.PriorityItem
 import com.mauforge.paintlife.today.QuickAction
 import com.mauforge.paintlife.today.QuietToday
+import com.mauforge.paintlife.today.SleepCardUi
 import com.mauforge.paintlife.today.TodayStripBlock
 import com.mauforge.paintlife.today.TodayUiState
 import java.time.LocalDate
@@ -75,6 +80,7 @@ object TodaySamples {
         priorities = emptyList(),
         strip = listOf(TodayStripBlock(0, min(7, 10), null)),
         quickActions = AllQuickActions,
+        sleepCard = SleepCardUi("23:10", "06:55"),
     )
 
     val partlyPainted = TodayUiState(
@@ -317,13 +323,27 @@ object MyTimeSamples {
         hourMarks = marks,
         dayLengthMinutes = 1440,
         nowMinute = min(9, 10),
-        observationDay = 1,
+        observedDays = 0,
         insightsReady = false,
+        layersAvailable = false,
+        quickActivities = quickActivities,
     )
 
-    val observationDay3 = observationEmpty.copy(actual = day3Actual, nowMinute = min(14, 30), observationDay = 3)
+    val observationDay3 = observationEmpty.copy(
+        actual = day3Actual,
+        nowMinute = min(14, 30),
+        observedDays = 3,
+        nowDoing = NowDoingUi("Learning", "teal", "Kotlin course", "13:15", 75),
+    )
 
-    val afterObservationBoth = observationDay3.copy(layer = TimeLayer.Both, planned = planned, observationDay = null, insightsReady = true)
+    val afterObservationBoth = observationDay3.copy(
+        layer = TimeLayer.Both,
+        planned = planned,
+        observedDays = null,
+        insightsReady = true,
+        layersAvailable = true,
+        nowDoing = null,
+    )
 
     val pastDayPlanned = afterObservationBoth.copy(
         date = SampleDay.minusDays(1),
@@ -351,12 +371,19 @@ object MyTimeSamples {
             hourMarks = TimelineGeometry.hourMarks(date, SampleZone),
             dayLengthMinutes = TimelineGeometry.dayLengthMinutes(date, SampleZone),
             nowMinute = null,
-            observationDay = null,
+            observedDays = null,
             insightsReady = false,
+            layersAvailable = false,
         )
     }
 
     private val categories = SeedData.categories.map { CategoryOption(it.id, it.name, it.colorKey, it.isDistraction) }
+
+    private val quickActivities: List<QuickActivity>
+        get() = listOf(
+            QuickActivity("work", "Work", "slate", "emails"),
+            QuickActivity("learning", "Learning", "teal", "Kotlin course"),
+        ) + SeedData.categories.map { QuickActivity(it.id, it.name, it.colorKey, null) }
 
     val logNew = LogActivityUiState(
         isEditing = false,
@@ -367,6 +394,8 @@ object MyTimeSamples {
         endLabel = "10:30",
         endsNextDay = false,
         durationMinutes = 90,
+        recent = listOf(QuickActivity("work", "Work", "slate", "emails"), QuickActivity("learning", "Learning", "teal", "Kotlin course")),
+        layersAvailable = false,
     )
 
     val logEditOvernight = logNew.copy(
@@ -381,9 +410,28 @@ object MyTimeSamples {
     val overlap = OverlapUiState(
         newCategoryName = "Phone/internet",
         newRange = "12:15–13:00",
-        neighbourCategoryName = "Work",
-        neighbourRange = "09:00–12:30",
-        trimmedNeighbourRange = "09:00–12:15",
+        neighbours = listOf(
+            OverlapRow("Work", "09:00–12:30", OverlapOutcome.Trimmed, listOf("09:00–12:15")),
+            OverlapRow("Personal care", "12:30–12:45", OverlapOutcome.Removed, emptyList()),
+        ),
+    )
+
+    /** A short call in the middle of a work block: the block is split around it. */
+    val overlapSplit = OverlapUiState(
+        newCategoryName = "Family",
+        newRange = "10:00–10:20",
+        neighbours = listOf(OverlapRow("Work", "09:00–12:30", OverlapOutcome.Split, listOf("09:00–10:00", "10:20–12:30"))),
+    )
+
+    /** Confirming a "now doing" activity left running overnight. */
+    val confirmRunning = logNew.copy(
+        selectedCategoryId = "work",
+        note = "emails",
+        startLabel = "09:10",
+        endLabel = "03:10",
+        endsNextDay = true,
+        durationMinutes = 18 * 60,
+        confirmingRunning = true,
     )
 }
 

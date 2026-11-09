@@ -26,6 +26,7 @@ import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 fun TodayScreen(
     onStartExercise: () -> Unit,
     onOpenQuiet: () -> Unit,
+    onOpenMyTime: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel(),
 ) {
@@ -50,9 +51,13 @@ fun TodayScreen(
                     when (action) {
                         QuickAction.StartExercise -> onStartExercise()
                         QuickAction.QuietTime -> onOpenQuiet()
-                        QuickAction.LogTime -> Unit
+                        QuickAction.LogTime -> viewModel.logTime()
                     }
                 },
+                onLogSleep = viewModel::logSleep,
+                onAdjustSleep = viewModel::adjustSleep,
+                onDismissSleep = viewModel::dismissSleep,
+                onStopNow = viewModel::stopNow,
             )
         }
         SnackbarHost(
@@ -103,14 +108,27 @@ fun TodayScreen(
         if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(undo.token) else viewModel.undoExpired(undo.token)
     }
 
+    // My Time has a sheet waiting (log since last entry, or a sleep that needs adjusting).
+    val openMyTime = state.openMyTime
+    LaunchedEffect(openMyTime) {
+        if (openMyTime == null) return@LaunchedEffect
+        viewModel.myTimeOpened(openMyTime)
+        onOpenMyTime()
+    }
+
     val notice = state.notice
     LaunchedEffect(notice?.token) {
         if (notice == null) return@LaunchedEffect
         val message = when (notice.kind) {
             TodayNotice.Kind.LimitReached -> R.string.today_notice_limit
             TodayNotice.Kind.RestoreFailed -> R.string.today_notice_restore_failed
+            TodayNotice.Kind.SleepLogged -> R.string.today_sleep_logged
         }
-        viewModel.noticeShown(notice.token)
-        snackbarHostState.showSnackbar(resources.getString(message), duration = SnackbarDuration.Short)
+        // Cleared only once shown: clearing first would change this effect's key and cancel it.
+        try {
+            snackbarHostState.showSnackbar(resources.getString(message), duration = SnackbarDuration.Short)
+        } finally {
+            viewModel.noticeShown(notice.token)
+        }
     }
 }

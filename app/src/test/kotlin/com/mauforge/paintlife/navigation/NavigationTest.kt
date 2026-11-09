@@ -44,7 +44,6 @@ class NavigationTest {
 
     /** Iteration that delivers each destination still showing its placeholder. */
     private val deliveredIn = mapOf(
-        TopLevelDestination.MY_TIME to 6,
         TopLevelDestination.PROGRESS to 7,
     )
 
@@ -78,6 +77,14 @@ class NavigationTest {
         waitForTag("quiet_content")
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.QUIET)).assertIsSelected()
         composeRule.onNodeWithText(context.getString(R.string.quiet_subtitle_ready)).assertIsDisplayed()
+        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun myTimeTabShowsTheRealTimeline() {
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.MY_TIME)).performClick()
+        waitForTag("my_time_content")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.MY_TIME)).assertIsSelected()
         assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
     }
 
