@@ -34,8 +34,19 @@ data object ExerciseHistoryRoute
 @Serializable
 data object QuietRoute
 
+/** The My Time tab's own back stack: the timeline, insights and the schedule proposal. */
+@Serializable
+data object MyTimeGraph
+
 @Serializable
 data object MyTimeRoute
+
+@Serializable
+data object MyTimeInsightsRoute
+
+/** "Suggest a schedule": a proposal that is saved only when approved. */
+@Serializable
+data object MyTimeScheduleRoute
 
 @Serializable
 data object ProgressRoute

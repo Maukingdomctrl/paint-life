@@ -13,7 +13,9 @@ import com.mauforge.paintlife.exercise.ExerciseHistoryScreen
 import com.mauforge.paintlife.exercise.ExerciseSafetyScreen
 import com.mauforge.paintlife.exercise.ExerciseScreen
 import com.mauforge.paintlife.exercise.ExerciseSessionScreen
+import com.mauforge.paintlife.mytime.InsightsScreen
 import com.mauforge.paintlife.mytime.MyTimeScreen
+import com.mauforge.paintlife.mytime.ScheduleScreen
 import com.mauforge.paintlife.progress.ProgressScreen
 import com.mauforge.paintlife.quiet.QuietScreen
 import com.mauforge.paintlife.today.TodayScreen
@@ -73,7 +75,20 @@ fun PaintLifeNavHost(
             composable<ExerciseHistoryRoute> { ExerciseHistoryScreen() }
         }
         composable<QuietRoute> { QuietScreen() }
-        composable<MyTimeRoute> { MyTimeScreen() }
+        navigation<MyTimeGraph>(startDestination = MyTimeRoute) {
+            composable<MyTimeRoute> {
+                MyTimeScreen(
+                    onOpenInsights = { navController.navigate(MyTimeInsightsRoute) { launchSingleTop = true } },
+                    onSuggestSchedule = { navController.navigate(MyTimeScheduleRoute) { launchSingleTop = true } },
+                )
+            }
+            composable<MyTimeInsightsRoute> {
+                InsightsScreen(onSuggestSchedule = { navController.navigate(MyTimeScheduleRoute) { launchSingleTop = true } })
+            }
+            composable<MyTimeScheduleRoute> {
+                ScheduleScreen(onDone = { navController.popIfOn<MyTimeScheduleRoute>() })
+            }
+        }
         composable<ProgressRoute> { ProgressScreen() }
     }
 }

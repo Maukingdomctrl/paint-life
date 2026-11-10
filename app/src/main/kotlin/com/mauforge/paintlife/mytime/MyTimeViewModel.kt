@@ -30,8 +30,10 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 /**
- * My Time (Iteration 6a: actual time). Shows one day, follows [DayClock] while on today, and
- * runs the log sheet, the overlap choice, Undo and the running "now doing" activity.
+ * My Time. Shows one day (past, today or up to [MAX_DAYS_AHEAD] ahead for planning), follows
+ * [DayClock] while on today, and runs the log sheet for actual and planned entries, the overlap
+ * choice, Undo, the running "now doing" activity, "Change for this day" on schedule blocks and
+ * the categories sheet.
  *
  * Entry points run on the main thread and ignore repeats while a save is running.
  */
@@ -54,6 +56,9 @@ class MyTimeViewModel @Inject constructor(
         val zone: ZoneId,
         val fromCurrent: Boolean = false,
         val confirmingRunning: Boolean = false,
+        val kind: TimeEntryKind = TimeEntryKind.ACTUAL,
+        /** A future day: only planned entries can be made. */
+        val plannedOnly: Boolean = false,
         /** Started once this is saved (switching from a running activity that needed the user). */
         val then: QuickActivity? = null,
     )
@@ -64,12 +69,22 @@ class MyTimeViewModel @Inject constructor(
         val saving: Boolean = false,
         val undo: MyTimeUndo? = null,
         val notice: MyTimeNotice? = null,
+        /** A tapped schedule block: its id and the day it belongs to. */
+        val schedulePrompt: Pair<String, LocalDate>? = null,
+        val categoriesOpen: Boolean = false,
     )
 
-    private data class Day(val date: LocalDate, val today: LocalDate, val entries: List<EntryWithCategory>)
+    private data class Day(
+        val date: LocalDate,
+        val today: LocalDate,
+        val entries: List<EntryWithCategory>,
+        val planned: List<EntryWithCategory>,
+        val schedules: List<ScheduleWithBlocks>,
+    )
 
     private val local = MutableStateFlow(Local())
     private val selected = MutableStateFlow<LocalDate?>(null)
+    private val layer = MutableStateFlow(TimeLayer.Actual)
     private var undoChange: EntryChange? = null
     private var nextToken = 0L
 
@@ -86,7 +101,17 @@ class MyTimeViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private val day: Flow<Day> = combine(selected, moment) { picked, m -> (picked ?: m.date) to m.date }
         .distinctUntilChanged()
-        .flatMapLatest { (date, today) -> repository.observeDayEntries(date).map { Day(date, today, it) } }
+        .flatMapLatest { (date, today) ->
+            // Planned entries from the day before too: whether it has its own plan decides
+            // whether its schedule blocks reach into this day.
+            val from = DayView.readWindow(date.minusDays(1)).first
+            val to = DayView.readWindow(date).second
+            combine(
+                repository.observeDayEntries(date),
+                repository.observeEntries(TimeEntryKind.PLANNED, from, to),
+                repository.observeSchedules(),
+            ) { actual, planned, schedules -> Day(date, today, actual, planned, schedules) }
+        }
 
     private val categories = repository.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
@@ -113,11 +138,11 @@ class MyTimeViewModel @Inject constructor(
 
     private val content: Flow<MyTimeUiState> = combine(
         day,
-        combine(repository.observeCurrent(), categories, ::Pair),
+        combine(repository.observeCurrent(), categories, layer, ::Triple),
         observed,
         quick,
         now,
-    ) { day, (current, cats), observed, quick, now -> buildContent(day, current, cats, observed, quick, now) }
+    ) { day, (current, cats, layer), observed, quick, now -> buildContent(day, current, cats, layer, observed, quick, now) }
 
     val state: StateFlow<MyTimeScreenState> = combine(content, local, categories, quick) { content, local, cats, quick ->
         MyTimeScreenState(
@@ -126,6 +151,10 @@ class MyTimeViewModel @Inject constructor(
             overlap = local.overlap?.let { fit -> local.editor?.let { overlapUi(it, fit, cats) } },
             undo = local.undo,
             notice = local.notice,
+            schedulePrompt = local.schedulePrompt?.let { (id, _) ->
+                content.planned.firstOrNull { it.id == id }?.let { SchedulePromptUi(it.categoryName, "${it.startLabel}–${it.endLabel}") }
+            },
+            categories = if (local.categoriesOpen) cats.map { CategoryOption(it.id, it.name, it.colorKey, it.isDistraction) } else null,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), MyTimeScreenState())
 
@@ -139,6 +168,7 @@ class MyTimeViewModel @Inject constructor(
         day: Day,
         current: CurrentActivityEntity?,
         cats: List<ActivityCategoryEntity>,
+        layer: TimeLayer,
         observed: Int?,
         quick: List<QuickActivity>,
         now: Instant,
@@ -146,19 +176,26 @@ class MyTimeViewModel @Inject constructor(
         val currentZone = time.zone()
         val zone = DayView.zoneFor(day.date, day.today, currentZone, day.entries)
         val isToday = day.date == day.today
+        val isFuture = day.date > day.today
         val onDay = DayView.onDay(day.entries, day.date, zone)
+        val byId = cats.associateBy { it.id }
+        val planned = PlannedLayer.forDay(day.date, zone, day.planned.map { it.entry }, day.schedules)
+            .mapNotNull { DayView.plannedBlock(it, byId[it.categoryId], day.date, zone) }
         return MyTimeUiState(
             date = day.date,
             isToday = isToday,
-            layer = TimeLayer.Actual,
-            actual = DayView.blocks(onDay, day.date, zone),
-            planned = emptyList(),
+            // A future day has nothing actual yet: it shows (and takes) plans only.
+            layer = if (isFuture) TimeLayer.Planned else layer,
+            actual = if (isFuture) emptyList() else DayView.blocks(onDay, day.date, zone),
+            planned = planned,
             hourMarks = TimelineGeometry.hourMarks(day.date, zone),
             dayLengthMinutes = TimelineGeometry.dayLengthMinutes(day.date, zone),
             nowMinute = if (isToday) DayView.minuteOfDay(now, day.date, zone) else null,
             observedDays = observed,
-            insightsReady = false,
-            layersAvailable = false,
+            insightsReady = observed == null,
+            layersAvailable = !isFuture,
+            isFuture = isFuture,
+            canGoForward = day.date < day.today.plusDays(MAX_DAYS_AHEAD),
             shownZone = zone.id.takeIf { zone != currentZone || DayView.hasOtherZones(day.entries, day.date, zone) },
             nowDoing = current?.let { running ->
                 val category = cats.firstOrNull { it.id == running.categoryId }
@@ -180,7 +217,7 @@ class MyTimeViewModel @Inject constructor(
         val minutes = Duration.between(editor.start, editor.end).toMinutes()
         return LogActivityUiState(
             isEditing = editor.id != null,
-            layer = TimeLayer.Actual,
+            layer = if (editor.kind == TimeEntryKind.PLANNED) TimeLayer.Planned else TimeLayer.Actual,
             categories = cats.map { CategoryOption(it.id, it.name, it.colorKey, it.isDistraction) },
             selectedCategoryId = editor.categoryId,
             startLabel = start.text,
@@ -192,7 +229,7 @@ class MyTimeViewModel @Inject constructor(
             startOccurrence = start.occurrence,
             endOccurrence = end.occurrence,
             confirmingRunning = editor.confirmingRunning,
-            layersAvailable = false,
+            layersAvailable = editor.id == null && !editor.fromCurrent && !editor.plannedOnly,
             saving = saving,
         )
     }
@@ -201,6 +238,7 @@ class MyTimeViewModel @Inject constructor(
         val names = cats.associate { it.id to it.name }
         fun range(start: Instant, end: Instant) = "${TimeRules.wallTime(start, editor.zone).text}–${TimeRules.wallTime(end, editor.zone).text}"
         return OverlapUiState(
+            planned = editor.kind == TimeEntryKind.PLANNED,
             newCategoryName = names[editor.categoryId].orEmpty(),
             newRange = range(editor.start, editor.end),
             neighbours = fit.map { change ->
@@ -229,7 +267,13 @@ class MyTimeViewModel @Inject constructor(
     fun nextDay() {
         val shown = state.value.content?.date ?: return
         val today = moment.value.date
-        selected.value = shown.plusDays(1).takeIf { it < today }
+        val next = shown.plusDays(1)
+        if (next > today.plusDays(MAX_DAYS_AHEAD)) return
+        selected.value = next.takeIf { it != today }
+    }
+
+    fun setLayer(value: TimeLayer) {
+        layer.value = value
     }
 
     // Opening the sheet
@@ -237,6 +281,10 @@ class MyTimeViewModel @Inject constructor(
     /** Log activity: since the last entry on today; the first gap on a past day. */
     fun openNew() {
         val content = state.value.content ?: return
+        if (content.layer == TimeLayer.Planned) {
+            openPlanned(content)
+            return
+        }
         if (content.isToday) {
             logSinceLastEntry()
             return
@@ -246,6 +294,32 @@ class MyTimeViewModel @Inject constructor(
         val startMinute = gap?.start ?: (12 * 60)
         val endMinute = gap?.let { minOf(it.end, it.start + 60) } ?: (13 * 60)
         openEditor(DayView.instantAt(content.date, zone, startMinute), DayView.instantAt(content.date, zone, endMinute), zone)
+    }
+
+    /** A new planned entry: after the day's last plan, else now (today) or 09:00. An hour long. */
+    private fun openPlanned(content: MyTimeUiState) {
+        val zone = zoneOfShownDay()
+        val lastEnd = content.planned.maxOfOrNull { it.span.end }?.takeIf { it <= content.dayLengthMinutes - TimeRules.STEP_MINUTES }
+        val start = when {
+            lastEnd != null -> TimeRules.roundToStep(DayView.instantAt(content.date, zone, lastEnd))
+            content.isToday -> TimeRules.roundToStep(time.now())
+            else -> DayView.instantAt(content.date, zone, PLAN_DEFAULT_START)
+        }
+        local.update {
+            it.copy(
+                editor = Editor(null, null, "", start, start.plus(Duration.ofHours(1)), zone, kind = TimeEntryKind.PLANNED, plannedOnly = content.isFuture),
+                overlap = null,
+            )
+        }
+    }
+
+    /** The sheet's Actual / Planned switch (new entries only; future days stay planned). */
+    fun setEditorLayer(value: TimeLayer) = updateEditor { editor ->
+        if (editor.id != null || editor.fromCurrent || editor.plannedOnly) {
+            editor
+        } else {
+            editor.copy(kind = if (value == TimeLayer.Planned) TimeEntryKind.PLANNED else TimeEntryKind.ACTUAL)
+        }
     }
 
     /** From where the last entry ended to now (rounded to 5 minutes). */
@@ -270,13 +344,51 @@ class MyTimeViewModel @Inject constructor(
     }
 
     fun openEntry(id: String) {
+        if (id.startsWith(PlannedLayer.SCHEDULE_PREFIX)) {
+            val day = runCatching { LocalDate.parse(id.substringAfterLast(':')) }.getOrNull() ?: return
+            local.update { it.copy(schedulePrompt = id to day) }
+            return
+        }
         val zone = zoneOfShownDay()
         viewModelScope.launch {
             val entry = repository.entry(id) ?: return@launch notify(MyTimeNotice.Kind.Missing)
             local.update {
-                it.copy(editor = Editor(entry.id, entry.categoryId, entry.note.orEmpty(), entry.startAt, entry.endAt, zone), overlap = null)
+                it.copy(
+                    editor = Editor(entry.id, entry.categoryId, entry.note.orEmpty(), entry.startAt, entry.endAt, zone, kind = entry.kind),
+                    overlap = null,
+                )
             }
         }
+    }
+
+    // Schedule blocks
+
+    /** "Change for this day": the day's schedule blocks become its own planned entries (Undo). */
+    fun changeScheduleDay() {
+        val (_, day) = local.value.schedulePrompt ?: return
+        val zone = zoneOfShownDay()
+        local.update { it.copy(schedulePrompt = null) }
+        viewModelScope.launch {
+            repository.copyScheduleDay(day, zone)?.let { offerUndo(it, MyTimeUndo.Kind.Copied) }
+        }
+    }
+
+    fun closeSchedulePrompt() {
+        local.update { it.copy(schedulePrompt = null) }
+    }
+
+    // Categories
+
+    fun openCategories() {
+        local.update { it.copy(categoriesOpen = true) }
+    }
+
+    fun closeCategories() {
+        local.update { it.copy(categoriesOpen = false) }
+    }
+
+    fun setDistraction(categoryId: String, isDistraction: Boolean) {
+        viewModelScope.launch { repository.setDistraction(categoryId, isDistraction) }
     }
 
     private fun openEditor(start: Instant, end: Instant, zone: ZoneId) {
@@ -353,7 +465,7 @@ class MyTimeViewModel @Inject constructor(
         local.update { it.copy(saving = true) }
         viewModelScope.launch {
             try {
-                val draft = EntryDraft(editor.id, TimeEntryKind.ACTUAL, categoryId, editor.note, editor.start, editor.end, editor.fromCurrent)
+                val draft = EntryDraft(editor.id, editor.kind, categoryId, editor.note, editor.start, editor.end, editor.fromCurrent, zone = editor.zone)
                 when (val result = repository.save(draft, resolution)) {
                     is SaveResult.Saved -> {
                         local.update { it.copy(editor = null, overlap = null) }
@@ -444,8 +556,12 @@ class MyTimeViewModel @Inject constructor(
         }
     }
 
-    private companion object {
-        const val STOP_TIMEOUT_MS = 5_000L
-        const val TICK_MS = 30_000L
+    companion object {
+        private const val STOP_TIMEOUT_MS = 5_000L
+        private const val TICK_MS = 30_000L
+
+        /** Days ahead that can be planned. */
+        const val MAX_DAYS_AHEAD = 7L
+        private const val PLAN_DEFAULT_START = 9 * 60
     }
 }

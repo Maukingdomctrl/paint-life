@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
@@ -100,4 +101,29 @@ interface TimeDao {
 
     @Query("DELETE FROM current_activity")
     suspend fun clearCurrent(): Int
+
+    /** Changes a category's distraction flag; it applies to every day, past ones included. */
+    @Query("UPDATE activity_category SET isDistraction = :isDistraction WHERE id = :id")
+    suspend fun setDistraction(id: String, isDistraction: Boolean): Int
+
+    /** Schedules that have been approved (active now or in the past), with their blocks. */
+    @Transaction
+    @Query("SELECT * FROM daily_schedule WHERE status != 'PROPOSED' AND activeFrom IS NOT NULL ORDER BY activeFrom, id")
+    fun observeSchedules(): Flow<List<ScheduleWithBlocks>>
+
+    @Transaction
+    @Query("SELECT * FROM daily_schedule WHERE status != 'PROPOSED' AND activeFrom IS NOT NULL ORDER BY activeFrom, id")
+    suspend fun schedules(): List<ScheduleWithBlocks>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertSchedule(schedule: DailyScheduleEntity)
+
+    @Update
+    suspend fun updateSchedule(schedule: DailyScheduleEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertBlocks(blocks: List<ScheduleBlockEntity>)
+
+    @Query("SELECT COUNT(*) FROM daily_schedule")
+    suspend fun scheduleCount(): Int
 }

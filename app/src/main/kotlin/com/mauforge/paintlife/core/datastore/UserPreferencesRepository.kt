@@ -83,6 +83,13 @@ class UserPreferencesRepository @Inject constructor(
         dataStore.edit { prefs -> prefs[SLEEP_CARD_DISMISSED_ON] = date.toString() }
     }
 
+    /** The name of My Time's insights period ("Week" or "FourWeeks"), null until chosen. */
+    val myTimeInsightsPeriod: Flow<String?> = data.map { prefs -> prefs[MY_TIME_INSIGHTS_PERIOD] }
+
+    suspend fun setMyTimeInsightsPeriod(name: String) {
+        dataStore.edit { prefs -> prefs[MY_TIME_INSIGHTS_PERIOD] = name }
+    }
+
     private companion object {
         val FIRST_LAUNCH_DATE = stringPreferencesKey("first_launch_date")
         val EXERCISE_SAFETY_READ = booleanPreferencesKey("exercise_safety_read")
@@ -90,5 +97,6 @@ class UserPreferencesRepository @Inject constructor(
         val QUIET_NOTIFICATIONS_ASKED = booleanPreferencesKey("quiet_notifications_asked")
         val MY_TIME_OBSERVATION_COMPLETE = booleanPreferencesKey("my_time_observation_complete")
         val SLEEP_CARD_DISMISSED_ON = stringPreferencesKey("sleep_card_dismissed_on")
+        val MY_TIME_INSIGHTS_PERIOD = stringPreferencesKey("my_time_insights_period")
     }
 }

@@ -204,4 +204,61 @@ class MyTimeScreenTest {
         assertEquals(listOf(Triple("sleep", "00:00", "01:00")), stored(day.minusDays(1)))
         composeRule.onNodeWithTag("my_time_content").assertExists()
     }
+
+    private fun storedPlanned(date: LocalDate): List<Triple<String, String, String>> = runBlocking {
+        val (from, to) = DayView.readWindow(date)
+        repository.observeEntries(TimeEntryKind.PLANNED, from, to).first()
+            .filter { it.entry.startAt.atZone(zone).toLocalDate() == date }
+            .map { Triple(it.entry.categoryId, TimeRules.wallTime(it.entry.startAt, zone).text, TimeRules.wallTime(it.entry.endAt, zone).text) }
+    }
+
+    @Test
+    fun insightsStayHiddenUntilSevenDaysAreRecorded() {
+        (1..6).forEach { back -> save(at(9, date = day.minusDays(back.toLong())), at(11, date = day.minusDays(back.toLong())), "work") }
+        show()
+        waitFor(hasText(string(R.string.my_time_observation_title, 6)))
+        assertEquals(0, composeRule.onAllNodes(hasTestTag("insights_card"), useUnmergedTree = true).fetchSemanticsNodes().size)
+
+        save(at(9, date = day.minusDays(7)), at(11, date = day.minusDays(7)), "work")
+        waitFor(hasTestTag("insights_card"))
+        waitForNo(hasTestTag("observation_banner"))
+    }
+
+    @Test
+    fun tomorrowTakesPlansOnlyAndTheyNeverCountAsActual() {
+        show()
+        composeRule.onNode(hasContentDescription(string(R.string.my_time_next_day))).performClick()
+        waitFor(hasTestTag("future_note"))
+        tap(string(R.string.action_plan_activity))
+        waitFor(hasTestTag("log_activity"))
+        waitFor(hasText(string(R.string.my_time_plan_title)))
+        tap("Exercise", screen = "log_activity")
+        tap(string(R.string.action_save), screen = "log_activity")
+
+        val tomorrow = day.plusDays(1)
+        composeRule.waitUntil(5_000) { storedPlanned(tomorrow).isNotEmpty() }
+        assertEquals(listOf(Triple("exercise", "09:00", "10:00")), storedPlanned(tomorrow))
+        assertEquals(emptyList<Any>(), stored(tomorrow))
+    }
+
+    @Test
+    fun aScheduleBlockCanBeChangedForOneDay() {
+        runBlocking {
+            ScheduleRepository(db, time.provider).approve(
+                ApprovedProposal("Plan", listOf(ProposalBlock("x", "work", 9 * 60, 12 * 60, ScheduleRules.ALL_DAYS)), null, null),
+            )
+        }
+        show()
+        tap(string(R.string.my_time_layer_planned))
+        val block = hasContentDescription(string(R.string.my_time_block_planned, "Work", "09:00", "12:00"), substring = true)
+        showTimeline()
+        waitFor(block)
+        composeRule.onNode(block).performSemanticsAction(SemanticsActions.OnClick)
+        waitFor(hasTestTag("schedule_prompt"))
+        composeRule.onNode(hasText(string(R.string.action_change_this_day)) and hasClickAction()).performClick()
+
+        composeRule.waitUntil(5_000) { storedPlanned(day).isNotEmpty() }
+        assertEquals(listOf(Triple("work", "09:00", "12:00")), storedPlanned(day))
+        waitFor(hasText(string(R.string.my_time_copied)))
+    }
 }

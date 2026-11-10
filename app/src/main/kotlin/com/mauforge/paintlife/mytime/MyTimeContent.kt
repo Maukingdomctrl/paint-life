@@ -83,6 +83,7 @@ fun MyTimeContent(
     onFillGap: (startMinute: Int, endMinute: Int) -> Unit = { _, _ -> },
     onStartNow: (QuickActivity) -> Unit = {},
     onStopNow: () -> Unit = {},
+    onOpenCategories: () -> Unit = {},
 ) {
     val spacing = PaintLifeTheme.spacing
     PaintLifeScreen(modifier = modifier.testTag("my_time_content"), verticalSpacing = spacing.lg) {
@@ -110,9 +111,19 @@ fun MyTimeContent(
                 }
             }
         }
+        if (state.isFuture) {
+            item(key = "future") {
+                Text(
+                    text = stringResource(R.string.my_time_future_note),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PaintLifeTheme.colors.textSecondary,
+                    modifier = Modifier.testTag("future_note"),
+                )
+            }
+        }
         if (state.insightsReady) {
             item(key = "insights") {
-                PaintLifeCard(Modifier.fillMaxWidth()) {
+                PaintLifeCard(Modifier.fillMaxWidth().testTag("insights_card")) {
                     Text(text = stringResource(R.string.my_time_insights_title), style = MaterialTheme.typography.titleMedium)
                     Text(
                         text = stringResource(R.string.my_time_insights_body),
@@ -130,7 +141,13 @@ fun MyTimeContent(
         }
         item(key = "log") {
             PrimaryButton(
-                stringResource(if (state.isToday) R.string.action_log_since_last else R.string.action_log_activity),
+                stringResource(
+                    when {
+                        state.layer == TimeLayer.Planned -> R.string.action_plan_activity
+                        state.isToday -> R.string.action_log_since_last
+                        else -> R.string.action_log_activity
+                    },
+                ),
                 onLogActivity,
                 Modifier.fillMaxWidth(),
                 icon = painterResource(R.drawable.ic_add),
@@ -156,7 +173,15 @@ fun MyTimeContent(
                         .hatched(colors.hatchBase, colors.hatchLine)
                         .border(1.dp, colors.border, PaintLifeTheme.shapes.bar),
                 )
-                Text(text = stringResource(R.string.my_time_legend_unrecorded), style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                Text(
+                    text = stringResource(R.string.my_time_legend_unrecorded),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onOpenCategories, modifier = Modifier.testTag("open_categories")) {
+                    Text(text = stringResource(R.string.my_time_categories), style = MaterialTheme.typography.labelLarge, color = colors.accent)
+                }
             }
         }
         item(key = "timeline") { Timeline(state, onOpenEntry, onFillGap) }
@@ -238,13 +263,15 @@ private fun DayHeader(state: MyTimeUiState, onPreviousDay: () -> Unit, onNextDay
                 Text(text = state.date.format(formatter), style = MaterialTheme.typography.titleMedium)
                 if (state.isToday) {
                     Text(text = stringResource(R.string.my_time_today), style = MaterialTheme.typography.bodySmall, color = colors.accent)
+                } else if (state.isFuture) {
+                    Text(text = stringResource(R.string.my_time_future_label), style = MaterialTheme.typography.bodySmall, color = colors.info)
                 }
             }
-            IconButton(onClick = onNextDay, enabled = !state.isToday) {
+            IconButton(onClick = onNextDay, enabled = state.canGoForward) {
                 Icon(
                     painterResource(R.drawable.ic_chevron_right),
                     contentDescription = stringResource(R.string.my_time_next_day),
-                    tint = if (state.isToday) colors.border else colors.text,
+                    tint = if (state.canGoForward) colors.text else colors.border,
                 )
             }
         }
@@ -358,6 +385,7 @@ private fun TimelineBlockView(block: TimelineBlock, planned: Boolean, x: Dp, wid
         )
         block.note?.let { append(", ").append(it) }
         if (block.isDistraction) append(", ").append(stringResource(R.string.category_distraction))
+        if (block.fromSchedule) append(", ").append(stringResource(R.string.my_time_from_schedule))
     }
     val shape = PaintLifeTheme.shapes.bar
     Row(
@@ -368,9 +396,10 @@ private fun TimelineBlockView(block: TimelineBlock, planned: Boolean, x: Dp, wid
             .padding(vertical = 1.dp)
             .clip(shape)
             .background(if (planned) colors.canvas else lerp(colors.surface, category, 0.28f))
-            .then(if (planned) Modifier.border(BorderStroke(1.5.dp, category), shape) else Modifier)
+            .then(if (planned) Modifier.border(BorderStroke(1.5.dp, if (block.fromSchedule) category.copy(alpha = 0.6f) else category), shape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description },
+            .semantics { contentDescription = description }
+            .testTag(if (block.fromSchedule) "schedule_block" else if (planned) "planned_block" else "actual_block"),
     ) {
         if (!planned) Box(Modifier.width(4.dp).fillMaxHeight().background(category))
         Column(Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs).clearAndSetSemantics { }) {
@@ -386,8 +415,9 @@ private fun TimelineBlockView(block: TimelineBlock, planned: Boolean, x: Dp, wid
                 if (block.isDistraction && !planned && height >= 40.dp) DistractionTag()
             }
             if (height >= 40.dp) {
+                val schedule = if (block.fromSchedule) stringResource(R.string.my_time_schedule_short) else null
                 Text(
-                    text = listOfNotNull("${block.startLabel}–${block.endLabel}", block.note).joinToString(" · "),
+                    text = listOfNotNull("${block.startLabel}–${block.endLabel}", block.note, schedule).joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
                     color = colors.textSecondary,
                     maxLines = 1,
@@ -425,7 +455,9 @@ fun LogActivityContent(
                     text = stringResource(
                         when {
                             state.confirmingRunning -> R.string.my_time_confirm_title
+                            state.isEditing && state.layer == TimeLayer.Planned -> R.string.my_time_edit_plan_title
                             state.isEditing -> R.string.my_time_edit_title
+                            state.layer == TimeLayer.Planned -> R.string.my_time_plan_title
                             else -> R.string.my_time_log_title
                         },
                     ),
@@ -540,7 +572,7 @@ private fun timeText(label: String, occurrence: Int?): String = when (occurrence
 
 /** A time with steppers: an hour and five minutes either way. */
 @Composable
-private fun TimeStepper(label: String, value: String, onNudge: (Long) -> Unit, tag: String) {
+internal fun TimeStepper(label: String, value: String, onNudge: (Long) -> Unit, tag: String) {
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
     Column(
@@ -596,7 +628,7 @@ fun OverlapContent(
         }
         item(key = "body") {
             Text(
-                text = stringResource(R.string.overlap_body, state.newCategoryName, state.newRange),
+                text = stringResource(if (state.planned) R.string.overlap_body_planned else R.string.overlap_body, state.newCategoryName, state.newRange),
                 style = MaterialTheme.typography.bodyLarge,
             )
         }

@@ -19,6 +19,8 @@ data class TimelineBlock(
     val continuesBefore: Boolean = false,
     val continuesAfter: Boolean = false,
     val note: String? = null,
+    /** A block of the approved schedule rather than a planned entry of this day's own. */
+    val fromSchedule: Boolean = false,
 )
 
 /** The running "now doing" activity. */
@@ -49,10 +51,14 @@ data class MyTimeUiState(
     val nowMinute: Int?,
     /** Days recorded so far (0-6) during the observation week; null once it is over. */
     val observedDays: Int?,
-    /** True once insights are available (Iteration 6b). */
+    /** True once the observation week is over and insights are available. */
     val insightsReady: Boolean,
-    /** The planned layer exists (Iteration 6b); until then the layer picker is hidden. */
+    /** The Actual / Planned / Both picker shows (not on future days, which are planned only). */
     val layersAvailable: Boolean = true,
+    /** A day after today: plans only. */
+    val isFuture: Boolean = false,
+    /** The next day can be shown (up to a week ahead, for planning). */
+    val canGoForward: Boolean = false,
     /** Set when the day is shown in a zone other than the current one, or holds entries from another zone. */
     val shownZone: String? = null,
     val nowDoing: NowDoingUi? = null,
@@ -107,6 +113,8 @@ data class OverlapRow(
 /** Saving would overlap other entries: offer to fit it in (trim) or replace them. */
 @Immutable
 data class OverlapUiState(
+    /** The entries are planned ones (the planned layer never overlaps itself either). */
+    val planned: Boolean = false,
     val newCategoryName: String,
     val newRange: String,
     val neighbours: List<OverlapRow>,
@@ -115,7 +123,7 @@ data class OverlapUiState(
 /** A change that can still be undone. */
 @Immutable
 data class MyTimeUndo(val token: Long, val kind: Kind) {
-    enum class Kind { Deleted, Fitted }
+    enum class Kind { Deleted, Fitted, Copied }
 }
 
 @Immutable
@@ -131,4 +139,12 @@ data class MyTimeScreenState(
     val overlap: OverlapUiState? = null,
     val undo: MyTimeUndo? = null,
     val notice: MyTimeNotice? = null,
+    /** A schedule block was tapped: offer "Change for this day". */
+    val schedulePrompt: SchedulePromptUi? = null,
+    /** The categories sheet is open with these. */
+    val categories: List<CategoryOption>? = null,
 )
+
+/** A tapped block of the approved schedule. */
+@Immutable
+data class SchedulePromptUi(val categoryName: String, val range: String)

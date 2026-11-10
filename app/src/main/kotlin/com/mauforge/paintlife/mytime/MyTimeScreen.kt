@@ -29,6 +29,8 @@ import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 @Composable
 fun MyTimeScreen(
     modifier: Modifier = Modifier,
+    onOpenInsights: () -> Unit = {},
+    onSuggestSchedule: () -> Unit = {},
     viewModel: MyTimeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -44,15 +46,15 @@ fun MyTimeScreen(
                 state = content,
                 onPreviousDay = viewModel::previousDay,
                 onNextDay = viewModel::nextDay,
-                // The planned layer and insights arrive in 6b; their controls are hidden until then.
-                onLayerChange = {},
+                onLayerChange = viewModel::setLayer,
                 onLogActivity = viewModel::openNew,
                 onOpenEntry = viewModel::openEntry,
-                onOpenInsights = {},
-                onSuggestSchedule = {},
+                onOpenInsights = onOpenInsights,
+                onSuggestSchedule = onSuggestSchedule,
                 onFillGap = viewModel::fillGap,
                 onStartNow = viewModel::startNow,
                 onStopNow = viewModel::stopNow,
+                onOpenCategories = viewModel::openCategories,
             )
         }
         SnackbarHost(
@@ -84,7 +86,7 @@ fun MyTimeScreen(
             } else {
                 LogActivityContent(
                     state = editor,
-                    onLayerChange = {},
+                    onLayerChange = viewModel::setEditorLayer,
                     onSelectCategory = viewModel::selectCategory,
                     onNudgeStart = viewModel::nudgeStart,
                     onNudgeEnd = viewModel::nudgeEnd,
@@ -98,6 +100,18 @@ fun MyTimeScreen(
         }
     }
 
+    state.schedulePrompt?.let { prompt ->
+        PaintLifeSheet(onDismiss = viewModel::closeSchedulePrompt) {
+            SchedulePromptContent(prompt, onChangeDay = viewModel::changeScheduleDay, onCancel = viewModel::closeSchedulePrompt)
+        }
+    }
+
+    state.categories?.let { categories ->
+        PaintLifeSheet(onDismiss = viewModel::closeCategories) {
+            CategoriesContent(categories, onToggle = viewModel::setDistraction, onDone = viewModel::closeCategories)
+        }
+    }
+
     // Keyed by token: a new offer replaces the previous one. It never undoes on its own.
     val undo = state.undo
     LaunchedEffect(undo?.token) {
@@ -105,6 +119,7 @@ fun MyTimeScreen(
         val message = when (undo.kind) {
             MyTimeUndo.Kind.Deleted -> R.string.my_time_deleted
             MyTimeUndo.Kind.Fitted -> R.string.my_time_fitted
+            MyTimeUndo.Kind.Copied -> R.string.my_time_copied
         }
         val result = snackbarHostState.showSnackbar(
             message = resources.getString(message),

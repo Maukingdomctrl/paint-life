@@ -31,13 +31,35 @@ object DayView {
             date.plusDays(1).atStartOfDay(utc).toInstant().plus(Duration.ofHours(14))
     }
 
-    fun zoneFor(date: LocalDate, today: LocalDate, currentZone: ZoneId, entries: List<EntryWithCategory>): ZoneId {
-        if (date == today) return currentZone
+    fun zoneFor(date: LocalDate, today: LocalDate, currentZone: ZoneId, entries: List<EntryWithCategory>): ZoneId =
+        zoneOf(date, today, currentZone, entries.map { it.entry })
+
+    /** [zoneFor] over plain entries. Today and future days use the current zone. */
+    fun zoneOf(date: LocalDate, today: LocalDate, currentZone: ZoneId, entries: List<TimeEntryEntity>): ZoneId {
+        if (date >= today) return currentZone
         return entries
-            .filter { it.entry.startAt.atZone(it.entry.zoneId).toLocalDate() == date }
-            .maxByOrNull { it.entry.startAt }
-            ?.entry?.zoneId
+            .filter { it.startAt.atZone(it.zoneId).toLocalDate() == date }
+            .maxByOrNull { it.startAt }
+            ?.zoneId
             ?: currentZone
+    }
+
+    /** A planned span clipped to [date], or null when it has no minute there. */
+    fun plannedBlock(span: PlannedSpan, category: ActivityCategoryEntity?, date: LocalDate, zone: ZoneId): TimelineBlock? {
+        val clipped = TimelineGeometry.clipToDay(span.start, span.end, date, zone) ?: return null
+        return TimelineBlock(
+            id = span.id,
+            span = clipped,
+            startLabel = TimeRules.wallTime(span.start, zone).text,
+            endLabel = TimeRules.wallTime(span.end, zone).text,
+            categoryName = category?.name.orEmpty(),
+            colorKey = category?.colorKey ?: "stone",
+            isDistraction = category?.isDistraction == true,
+            continuesBefore = span.start < TimelineGeometry.startOfDay(date, zone),
+            continuesAfter = span.end > TimelineGeometry.startOfDay(date.plusDays(1), zone),
+            note = span.note,
+            fromSchedule = span.fromSchedule,
+        )
     }
 
     /** True when some entry shown on [date] was recorded in a zone other than [zone]. */

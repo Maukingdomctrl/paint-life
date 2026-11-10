@@ -23,6 +23,8 @@ data class EntryDraft(
     val end: Instant,
     /** Set when the draft is the running activity being stopped: saving it also clears it. */
     val fromCurrent: Boolean = false,
+    /** The zone the day is shown in (for a planned entry: whose schedule day it lands on). */
+    val zone: ZoneId? = null,
 )
 
 /** Rows as they were ([before]) and as they are now ([after]); undoing swaps them back. */
@@ -108,7 +110,85 @@ class TimeRepository @Inject constructor(
      * of its kind; the overlaps come back for the user to choose. Fit and Replace change the
      * neighbours as [TimeRules.planOverlaps] says, in the same transaction.
      */
-    suspend fun save(draft: EntryDraft, resolution: Resolution): SaveResult = db.withTransaction { saveLocked(draft, resolution) }
+    suspend fun save(draft: EntryDraft, resolution: Resolution): SaveResult {
+        if (draft.kind != TimeEntryKind.PLANNED || draft.id != null) return db.withTransaction { saveLocked(draft, resolution) }
+        // A new planned entry on a day that shows the schedule: that day's schedule blocks become
+        // its own planned entries first (or the rest of the day's plan would vanish), all in one
+        // transaction that is rolled back if the user still has to choose about overlaps.
+        return try {
+            db.withTransaction {
+                val zone = draft.zone ?: time.zone()
+                val copied = copyScheduleDayLocked(draft.start.atZone(zone).toLocalDate(), zone)
+                when (val result = saveLocked(draft, resolution)) {
+                    is SaveResult.Saved -> if (copied.isEmpty()) {
+                        result
+                    } else {
+                        val change = result.change ?: EntryChange(emptyList(), listOf(result.entry))
+                        // Undo puts the day back as it was before the copy: the copied rows (as
+                        // they are now) go, and only rows that existed before come back.
+                        val touched = (change.before + change.after).map { it.id }.toSet()
+                        val after = change.after + copied.filter { it.id !in touched }
+                        SaveResult.Saved(result.entry, EntryChange(change.before.filter { b -> copied.none { it.id == b.id } }, after))
+                    }
+                    is SaveResult.Overlaps -> if (copied.isEmpty()) result else throw RollBack(result)
+                    else -> if (copied.isEmpty()) result else throw RollBack(result)
+                }
+            }
+        } catch (rollBack: RollBack) {
+            rollBack.result
+        }
+    }
+
+    private class RollBack(val result: SaveResult) : RuntimeException()
+
+    /** Approved schedules with their blocks (for the planned lane and insights). */
+    fun observeSchedules(): Flow<List<ScheduleWithBlocks>> = dao.observeSchedules()
+
+    /** Changes whether [categoryId] counts as a distraction, on every day including past ones. */
+    suspend fun setDistraction(categoryId: String, isDistraction: Boolean) {
+        dao.setDistraction(categoryId, isDistraction)
+    }
+
+    /**
+     * "Change for this day": the schedule blocks shown on [day] become planned entries of that
+     * day's own, so they can be edited without touching the schedule. Undo removes them again.
+     * Null when the day has no schedule blocks to copy.
+     */
+    suspend fun copyScheduleDay(day: LocalDate, zone: ZoneId): EntryChange? = db.withTransaction {
+        copyScheduleDayLocked(day, zone).takeIf { it.isNotEmpty() }?.let { EntryChange(before = emptyList(), after = it) }
+    }
+
+    private suspend fun copyScheduleDayLocked(day: LocalDate, zone: ZoneId): List<TimeEntryEntity> {
+        val dayStart = day.atStartOfDay(zone).toInstant()
+        val windowEnd = day.plusDays(2).atStartOfDay(zone).toInstant()
+        val own = dao.overlapping(TimeEntryKind.PLANNED, dayStart.minus(TimeRules.MAX_DURATION), windowEnd, TimeRules.earliestStart(dayStart.minus(TimeRules.MAX_DURATION)))
+        val spans = PlannedLayer.scheduleFor(day, zone, own, dao.schedules())
+        if (spans.isEmpty()) return emptyList()
+        val now = time.now()
+        val currentZone = time.zone()
+        val inserted = mutableListOf<TimeEntryEntity>()
+        spans.forEach { span ->
+            val clash = dao.overlapping(TimeEntryKind.PLANNED, span.start, span.end, TimeRules.earliestStart(span.start)).isNotEmpty()
+            if (clash) return@forEach
+            val entry = TimeEntryEntity(
+                id = UUID.randomUUID().toString(),
+                kind = TimeEntryKind.PLANNED,
+                categoryId = span.categoryId,
+                startAt = span.start,
+                endAt = span.end,
+                zoneId = zone,
+                endZoneId = zone,
+                note = null,
+                createdAt = now,
+                createdZoneId = currentZone,
+                updatedAt = now,
+                updatedZoneId = currentZone,
+            )
+            dao.insert(entry)
+            inserted += entry
+        }
+        return inserted
+    }
 
     private suspend fun saveLocked(draft: EntryDraft, resolution: Resolution): SaveResult {
         val start = TimeRules.toMinute(draft.start)
@@ -121,6 +201,8 @@ class TimeRepository @Inject constructor(
         }
         val now = time.now()
         val zone = time.zone()
+        // A planned entry is placed in the zone of the day it was planned on.
+        val entryZone = if (draft.kind == TimeEntryKind.PLANNED) draft.zone ?: zone else zone
         val before = mutableListOf<TimeEntryEntity>()
         val after = mutableListOf<TimeEntryEntity>()
         TimeRules.planOverlaps(start, end, neighbours, resolution).forEach { change ->
@@ -155,8 +237,8 @@ class TimeRepository @Inject constructor(
                 categoryId = draft.categoryId,
                 startAt = start,
                 endAt = end,
-                zoneId = zone,
-                endZoneId = zone,
+                zoneId = entryZone,
+                endZoneId = entryZone,
                 note = note,
                 createdAt = now,
                 createdZoneId = zone,

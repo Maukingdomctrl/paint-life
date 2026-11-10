@@ -108,6 +108,30 @@ object TimeRules {
         return result
     }
 
+    /**
+     * Counts each real minute of [start, end) into [buckets] by the local wall-clock time it shows
+     * in [zone]: bucket = minute of the day ÷ [bucketMinutes]. On a spring-forward day the skipped
+     * hour gets nothing; on a fall-back day the repeated hour is counted twice.
+     */
+    fun addWallMinutes(start: Instant, end: Instant, zone: ZoneId, bucketMinutes: Int, buckets: IntArray) {
+        val rules = zone.rules
+        var cursor = start.epochSecond / 60
+        val last = end.epochSecond / 60
+        while (cursor < last) {
+            val at = Instant.ofEpochSecond(cursor * 60)
+            val offsetMinutes = rules.getOffset(at).totalSeconds / 60
+            val nextChange = rules.nextTransition(at)?.instant?.epochSecond?.div(60) ?: Long.MAX_VALUE
+            val segmentEnd = minOf(last, nextChange)
+            while (cursor < segmentEnd) {
+                val minuteOfDay = Math.floorMod(cursor + offsetMinutes, MINUTES_PER_DAY.toLong()).toInt()
+                buckets[minuteOfDay / bucketMinutes]++
+                cursor++
+            }
+        }
+    }
+
+    const val MINUTES_PER_DAY = 24 * 60
+
     /** Days with at least an hour of actual time recorded, capped at the observation length. */
     fun observedDays(spans: List<EntrySpan>): Int {
         val perDay = HashMap<LocalDate, Long>()

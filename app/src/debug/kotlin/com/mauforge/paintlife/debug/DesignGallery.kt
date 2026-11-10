@@ -44,6 +44,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.mauforge.paintlife.R
 import com.mauforge.paintlife.core.designsystem.component.PaintLifeScreen
+import com.mauforge.paintlife.mytime.BlockEditorContent
+import com.mauforge.paintlife.mytime.CategoriesContent
+import com.mauforge.paintlife.mytime.InsightsContent
+import com.mauforge.paintlife.mytime.ScheduleContent
 import com.mauforge.paintlife.core.designsystem.component.Tray
 import com.mauforge.paintlife.core.designsystem.component.TrayDivider
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
@@ -191,6 +195,17 @@ val galleryEntries: List<GalleryEntry> = listOf(
     GalleryEntry("overlap", "My Time", "Overlap: fit it in or replace") { OverlapContent(MyTimeSamples.overlap, {}, {}, {}) },
     GalleryEntry("overlap_split", "My Time", "Overlap: split around a short entry") { OverlapContent(MyTimeSamples.overlapSplit, {}, {}, {}) },
     log("log_confirm_running", "Confirm a long-running activity", MyTimeSamples.confirmRunning),
+    myTime("my_time_future", "Tomorrow, planned from the schedule", PlanningSamples.futureDay),
+    GalleryEntry("my_time_categories", "My Time", "Categories and distractions") {
+        PaintLifeScreen { item { CategoriesContent(PlanningSamples.categoryOptions, { _, _ -> }, {}) } }
+    },
+    GalleryEntry("insights_locked", "My Time", "Insights before 7 recorded days") { InsightsContent(PlanningSamples.insightsLocked, {}, {}, {}) },
+    GalleryEntry("insights_ready", "My Time", "Insights, last 7 days") { InsightsContent(PlanningSamples.insightsReady, {}, {}, {}) },
+    GalleryEntry("schedule_proposal", "My Time", "Suggested schedule") { ScheduleContent(PlanningSamples.proposal, {}, {}, {}, {}, {}) },
+    GalleryEntry("schedule_not_enough", "My Time", "Suggestion: not enough days") { ScheduleContent(PlanningSamples.notEnough, {}, {}, {}, {}, {}) },
+    GalleryEntry("schedule_block_editor", "My Time", "Change a block (overlap)") {
+        PaintLifeScreen { item { BlockEditorContent(PlanningSamples.blockEditorOverlap, {}, {}, {}, {}, {}, {}, {}) } }
+    },
     progress("progress_today", "Today, nothing yet", ProgressSamples.todayEmpty),
     progress("progress_week", "Last 7 days", ProgressSamples.lastSevenDays),
     progress("progress_month", "This month", ProgressSamples.thisMonth),

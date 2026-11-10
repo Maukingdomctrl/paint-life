@@ -71,6 +71,15 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - Sleep: each morning until sleep is logged, Today offers "Log last night's sleep", prefilled from the median of the last 7 logged sleeps (23:00 to 07:00 at first). It can be dismissed.
 - Categories are the spec's 11 fixed ones. Only the distraction flag can be changed. Today's flag applies to all past days.
 
+## My Time: planned layer, insights and schedules (decided in Iteration 6b)
+- Planned entries never count as actual time. Every total, swatch, observation count, insight and recent chip reads actual entries only. Fast logging (gap fill, Log since last entry, now doing, sleep) is actual-only.
+- The planned layer works from day one (no prompts to plan), on past days, today and up to 7 days ahead. Future days accept planned entries only.
+- An approved schedule is the default plan: from its approval date on, a day without its own planned entries shows the schedule's blocks in the Planned lane. "Change for this day" copies that day's blocks into planned entries for that day only (with Undo). Past days are never rewritten.
+- Approving a schedule makes it active from today; the previous approved schedule ends yesterday. A proposal is kept in memory only and written to the database solely on approval (one transaction). Leaving an edited proposal asks "Discard this suggestion?".
+- Insights cover complete days ending yesterday, with a remembered "Last 7 days / Last 4 weeks" switch. Each day is read in its own zone, split at local midnight, 23/25 hours on DST days. Planned vs actual counts only days that had a plan. No percentages, scores or "on track" labels.
+- Distraction flags are edited in a Categories sheet reachable from My Time (from day one) and from the Distractions section in Insights.
+- Suggest a schedule is plain counting: the last 28 complete days, recorded days only (at least 1 hour actual), at least 7 needed. Each day is cut into 48 half-hour wall-clock slots; a slot's category that day is the one covering at least 15 of its 30 minutes (else not recorded). A category goes into a slot only if it was picked on at least half of the group's recorded days; ties or less leave the slot open. Adjacent equal slots merge into blocks, each showing its evidence ("seen on 5 of 6 weekdays"). Weekdays and weekends split when each has at least 2 recorded days, else one pattern. Distraction categories are treated like any other time. Never reminders or prompts outside My Time.
+
 ## Destructive actions
 - Small deletions that are easy to put back (for example, deleting one priority) happen at once and show an Undo snackbar. No confirmation dialog.
 - Bigger destructive actions (resetting counts, deleting history, replacing data on import) always ask for confirmation first.

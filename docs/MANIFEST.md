@@ -61,7 +61,7 @@ Known deviations from the official tables:
 ### Kotlin (`app/src/main/kotlin/com/mauforge/paintlife/`)
 - `PaintLifeApplication.kt`: Hilt app; records the first-launch date; creates the exercise and quiet session controllers at process start (recovery)
 - `MainActivity.kt`: edge-to-edge, light system-bar icons on the dark theme, no nav-bar scrim; checkpoints running exercise and quiet sessions in `onStop`; a Quiet Time notification tap opens the Quiet tab
-- `navigation/`: `Routes` (incl. the nested Exercise graph: tab, cat detail, session, result, safety, history), `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot; opens Quiet on request)
+- `navigation/`: `Routes` (incl. the nested Exercise graph: tab, cat detail, session, result, safety, history; the nested My Time graph: timeline, insights, schedule proposal), `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot; opens Quiet on request)
 - `core/designsystem/theme/`: `Color` (dark palette, `CategoryPalette`), `PaintLifeColors` (extended roles, swatch rule), `Type` (fonts, `NumberStyles`), `Shape` (`ShapeTokens`), `Spacing`, `Theme` (dark only)
 - `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`, `Sheets` (`PaintLifeSheet`, `ConfirmDialog`, field colours), `Motion` (`rememberReducedMotion`)
 - `core/database/`: `PaintLifeDatabase` (v5), `Converters`, `Migrations` (`allMigrations`), `MigrationSql` (shared helpers), `Migration1To2`, `Migration2To3`, `Migration3To4`, `Migration4To5` (My Time for 6a and 6b), `SeedData` (+ `SeedCallback`), `SessionStatus`
@@ -72,7 +72,7 @@ Known deviations from the official tables:
 - `exercise/`: `ExerciseScreen` (tab, cat detail, session, result, safety and history routes), `ExerciseViewModels` (tab, cat detail, session, result, history, safety), `ExerciseSessionController` (the open session: counting, saves, checkpoints, recovery, timed finish window with Undo), `SessionCounter` (count + undo rules), `ExerciseRepository` (+ `SessionNote`, `PersonalBestKeys`; Cat League unlocks and best times), `ChallengeCompleteContent` (1,000 reps without a win), `ExerciseDao` (+ `ExerciseDayTotals`), `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState` (+ `League` mapping, result states), `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `ExerciseHistoryContent`, `ExerciseSheets` (correct count, edit session), `CatDetailContent` (+ victory)
 - `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (+ `CatArt` placeholder detection)
 - `quiet/`: `QuietScreen` (wired: permission asked once, Undo snackbar, notices), `QuietViewModel`, `QuietSessionController` (the open session: timing, checkpoints, 5:00 completion, 30-minute pause limit, recovery as incomplete), `QuietTimerService` (`specialUse` foreground service, wake lock only while running, 5:00 alert), `QuietNotifications` (channels, ongoing countdown, alert), `QuietRepository`, `QuietDao`, `QuietRules` (what counts as completed, minutes, swatch fill), `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent` (+ completion bloom)
-- `mytime/`: `MyTimeScreen` (wired: log sheet, overlap choice, Undo), `MyTimeViewModel`, `TimeRepository` (save with overlap rules, delete/undo, running activity, sleep, observation), `TimeDao`, `TimeRules` (limits, rounding, overlap plan, midnight split, observation days, sleep prefill, repeated times), `DayView` (which zone a day is shown in, blocks, totals, strip), `MyTimeLaunch` (Today → My Time requests), `MyTimeEntities` (ActivityCategory, TimeEntry, CurrentActivity, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ now doing, log sheet with steppers, overlap)
+- `mytime/`: `MyTimeScreen` (wired: log sheet for actual and planned, overlap choice, Undo, schedule-block prompt, categories sheet), `MyTimeViewModel` (layers, planning up to 7 days ahead), `TimeRepository` (save with overlap rules, delete/undo, running activity, sleep, observation, copy a schedule day, distraction flag), `TimeDao`, `TimeRules` (limits, rounding, overlap plan, midnight split, observation days, sleep prefill, repeated times), `DayView` (which zone a day is shown in, blocks, totals, strip), `MyTimeLaunch` (Today → My Time requests), `MyTimeEntities` (ActivityCategory, TimeEntry, CurrentActivity, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ now doing, log sheet with steppers, overlap), `PlannedLayer` (+ `ScheduleRules`, `ScheduleWithBlocks`: own plans vs approved schedule per day), `Insights` (pure totals, `InsightsPeriod`), `InsightsViewModel`, `InsightsContent` (+ `InsightsScreen`), `ScheduleSuggester` (plain counting over observed days), `ScheduleRepository` (approve in one transaction), `ScheduleViewModel` (in-memory proposal), `ScheduleContent` (+ `ScheduleScreen`, block editor), `CategoriesContent` (+ schedule-block prompt)
 - `progress/`: `ProgressScreen`, `ProgressUiState`, `ProgressContent`, `Charts` (category bars, planned vs actual, daily distribution)
 
 ### Tests (`app/src/test/`)
@@ -103,7 +103,13 @@ Known deviations from the official tables:
 - `mytime/TimeRulesTest`: entries crossing midnight (spec §7), own-zone splits, DST nights and repeated times, limits, rounding, overlap plans, observation days, sleep prefill
 - `mytime/DayViewTest`: clipping, totals, the day so far, which zone a day is shown in
 - `mytime/TimeRepositoryTest`: overlaps (trim, split, replace, undo), edit, delete + undo, running activity (switch, under a minute, over 16 hours, overlaps, restart), recent, sleep, observation, 5-year history through the index
-- `mytime/MyTimeScreenTest`: Compose UI for gap tap, overlap fit + undo, delete + undo, now doing, past days, observation banner
+- `mytime/MyTimeScreenTest`: Compose UI for gap tap, overlap fit + undo, delete + undo, now doing, past days, observation banner, insights hidden until 7 days, planning tomorrow, change a schedule block for one day
+- `mytime/PlannedLayerTest`: own plans vs schedule, history ranges, blocks across midnight and DST, block overlaps
+- `mytime/InsightsTest`: planned never counts as actual, planned vs actual on plan days only, midnight split, DST 23/25-hour days, distraction flag changes, hourly patterns
+- `mytime/ScheduleSuggesterTest`: not enough days, half-the-days rule, ties, 15-minute slots, patchy and irregular weeks, weekday/weekend split, sleep across midnight, DST
+- `mytime/PlanningRepositoryTest`: planned never counts as actual, planned overlaps, approval history, invalid proposals, change for this day + undo, plans on schedule days, distraction flag
+- `mytime/PlanningViewModelTest`: insights hidden before 7 days, flag change updates insights, remembered period, suggestion saved only on approval, discard confirmation
+- `mytime/PlanningFixtures`: entries, schedules and categories for the pure tests
 - `testing/TestPreferences`: throwaway DataStore
 - `debug/ScreenLayoutsTest`: every gallery sample at 200% text on 320dp, plus layout rules
 - `navigation/NavigationTest`: the real activity under Hilt test + Robolectric
@@ -115,6 +121,7 @@ Known deviations from the official tables:
 - `kotlin/.../debug/DesignGallery.kt`: gallery activity, index and full-screen sample frame with a "Sample" badge
 - `kotlin/.../debug/DesignSheets.kt`: foundations, components and cat avatar review sheets
 - `kotlin/.../debug/SampleStates.kt`: labelled sample UI states for every screen
+- `kotlin/.../debug/PlanningSamples.kt`: planned day, insights and schedule proposal samples (computed by the real rules)
 - `kotlin/.../debug/DesignPreviews.kt`: Android Studio previews
 
 ### Release only (`app/src/release/`)
