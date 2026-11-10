@@ -1,17 +1,22 @@
 package com.mauforge.paintlife.progress
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import com.mauforge.paintlife.R
-import com.mauforge.paintlife.core.designsystem.component.NotYetBuiltState
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mauforge.paintlife.core.designsystem.component.LoadingState
 
 @Composable
-fun ProgressScreen(modifier: Modifier = Modifier) {
-    NotYetBuiltState(
-        title = stringResource(R.string.title_progress),
-        iteration = 7,
-        summary = stringResource(R.string.coming_progress),
-        modifier = modifier,
-    )
+fun ProgressScreen(
+    modifier: Modifier = Modifier,
+    viewModel: ProgressViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val content = state
+    if (content == null) {
+        LoadingState(modifier)
+    } else {
+        ProgressContent(content, onPeriodChange = viewModel::setPeriod, modifier = modifier)
+    }
 }

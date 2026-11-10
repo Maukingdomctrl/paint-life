@@ -28,6 +28,15 @@ class ExerciseRepository @Inject constructor(
 
     fun observeDayTotals(date: LocalDate): Flow<ExerciseDayTotals> = dao.observeDayTotals(date)
 
+    /** Totals over [from] to [to]: the same rule as [observeDayTotals] (open session included). */
+    fun observeRangeTotals(from: LocalDate, to: LocalDate): Flow<ExerciseDayTotals> = dao.observeRangeTotals(from, to)
+
+    fun observeRangeStats(from: LocalDate, to: LocalDate): Flow<ExerciseRangeStats> = dao.observeRangeStats(from, to)
+
+    fun observeFastestTimed(from: LocalDate, to: LocalDate): Flow<ExerciseSessionEntity?> = dao.observeFastestTimed(from, to)
+
+    fun observeRecords(): Flow<ExerciseRecords> = dao.observeRecords()
+
     fun observeFinishedSessions(): Flow<List<ExerciseSessionEntity>> = dao.observeFinishedSessions()
 
     fun observeLevels(): Flow<List<ChallengeLevelEntity>> = dao.observeLevels()

@@ -17,9 +17,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -116,16 +113,7 @@ class MyTimeViewModel @Inject constructor(
     private val categories = repository.observeCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val observed: Flow<Int?> = preferences.myTimeObservationComplete.flatMapLatest { complete ->
-        if (complete) {
-            flowOf(null)
-        } else {
-            repository.observeObservedDays()
-                .onEach { if (it >= TimeRules.OBSERVATION_DAYS) preferences.markMyTimeObservationComplete() }
-                .map { it.takeIf { days -> days < TimeRules.OBSERVATION_DAYS } }
-        }
-    }
+    private val observed: Flow<Int?> = observeObservation(repository, preferences)
 
     private val quick: Flow<List<QuickActivity>> = combine(repository.observeRecent(), categories) { recent, cats ->
         val byId = cats.associateBy { it.id }

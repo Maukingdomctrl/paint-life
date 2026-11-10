@@ -90,6 +90,13 @@ class UserPreferencesRepository @Inject constructor(
         dataStore.edit { prefs -> prefs[MY_TIME_INSIGHTS_PERIOD] = name }
     }
 
+    /** The name of the Progress period last chosen, null until chosen. */
+    val progressPeriod: Flow<String?> = data.map { prefs -> prefs[PROGRESS_PERIOD] }
+
+    suspend fun setProgressPeriod(name: String) {
+        dataStore.edit { prefs -> prefs[PROGRESS_PERIOD] = name }
+    }
+
     private companion object {
         val FIRST_LAUNCH_DATE = stringPreferencesKey("first_launch_date")
         val EXERCISE_SAFETY_READ = booleanPreferencesKey("exercise_safety_read")
@@ -98,5 +105,6 @@ class UserPreferencesRepository @Inject constructor(
         val MY_TIME_OBSERVATION_COMPLETE = booleanPreferencesKey("my_time_observation_complete")
         val SLEEP_CARD_DISMISSED_ON = stringPreferencesKey("sleep_card_dismissed_on")
         val MY_TIME_INSIGHTS_PERIOD = stringPreferencesKey("my_time_insights_period")
+        val PROGRESS_PERIOD = stringPreferencesKey("progress_period")
     }
 }

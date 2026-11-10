@@ -208,6 +208,7 @@ val galleryEntries: List<GalleryEntry> = listOf(
     },
     progress("progress_today", "Today, nothing yet", ProgressSamples.todayEmpty),
     progress("progress_week", "Last 7 days", ProgressSamples.lastSevenDays),
+    progress("progress_week_observing", "Last 7 days, first week", ProgressSamples.lastSevenDaysObserving),
     progress("progress_month", "This month", ProgressSamples.thisMonth),
     progress("progress_last_month", "Last month", ProgressSamples.lastMonth),
 )

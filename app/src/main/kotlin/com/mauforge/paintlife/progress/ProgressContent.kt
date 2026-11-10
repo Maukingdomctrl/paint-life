@@ -1,5 +1,6 @@
 package com.mauforge.paintlife.progress
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,14 +11,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.mauforge.paintlife.R
-import com.mauforge.paintlife.core.designsystem.component.currentLocale
 import com.mauforge.paintlife.core.designsystem.component.BigNumber
 import com.mauforge.paintlife.core.designsystem.component.EmptyState
 import com.mauforge.paintlife.core.designsystem.component.PaintLifeCard
@@ -28,19 +30,20 @@ import com.mauforge.paintlife.core.designsystem.component.SwatchCalendar
 import com.mauforge.paintlife.core.designsystem.component.SwatchDay
 import com.mauforge.paintlife.core.designsystem.component.SwatchSegment
 import com.mauforge.paintlife.core.designsystem.component.SwatchWeek
-import com.mauforge.paintlife.core.designsystem.component.paintedOrEmpty
+import com.mauforge.paintlife.core.designsystem.component.currentLocale
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.core.time.DurationFormat
 import com.mauforge.paintlife.exercise.cats.CatAvatar
 import com.mauforge.paintlife.exercise.cats.CatAvatarSize
 import com.mauforge.paintlife.exercise.cats.CatAvatarState
 import java.text.NumberFormat
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Progress: reports for a chosen period. Counts and totals only; no productivity score, and a
- * day without records is simply unpainted. Stateless; wired in Iteration 7.
+ * Progress: reports for a chosen period. Counts and totals only; no productivity score, no
+ * percentages, and a day without records is simply unpainted. Stateless.
  */
 @Composable
 fun ProgressContent(
@@ -59,7 +62,12 @@ fun ProgressContent(
                     onSelect = onPeriodChange,
                     label = { periodLabel(it) },
                 )
-                Text(text = rangeLabel(state, currentLocale()), style = MaterialTheme.typography.bodyMedium, color = PaintLifeTheme.colors.textSecondary)
+                Text(
+                    text = rangeLabel(state, currentLocale()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PaintLifeTheme.colors.textSecondary,
+                    modifier = Modifier.testTag("progress_range"),
+                )
             }
         }
         item(key = "exercise") { ExerciseSection(state.exercise) }
@@ -83,14 +91,42 @@ private fun rangeLabel(state: ProgressUiState, locale: Locale): String {
     return if (state.start == state.end) state.start.format(day) else "${state.start.format(day)} – ${state.end.format(day)}"
 }
 
+private fun shortRange(start: LocalDate, end: LocalDate, locale: Locale): String {
+    val day = DateTimeFormatter.ofPattern("d MMM", locale)
+    return if (start == end) start.format(day) else "${start.format(day)} – ${end.format(day)}"
+}
+
+/** A small pill naming an all-time record. Text, so it never rests on colour. */
+@Composable
+private fun RecordTag(modifier: Modifier = Modifier) {
+    val colors = PaintLifeTheme.colors
+    Text(
+        text = stringResource(R.string.progress_personal_best),
+        style = MaterialTheme.typography.labelSmall,
+        color = colors.accent,
+        modifier = modifier
+            .clip(PaintLifeTheme.shapes.pill)
+            .background(colors.accentMuted)
+            .padding(horizontal = PaintLifeTheme.spacing.sm, vertical = PaintLifeTheme.spacing.xxs),
+    )
+}
+
+@Composable
+private fun Stat(value: String, label: String, isRecord: Boolean, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(PaintLifeTheme.spacing.xs)) {
+        BigNumber(value = value, label = label, style = PaintLifeTheme.numbers.medium)
+        if (isRecord) RecordTag()
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ExerciseSection(report: ExerciseReport) {
     val spacing = PaintLifeTheme.spacing
-    val numberFormat = NumberFormat.getIntegerInstance()
-    PaintLifeCard(Modifier.fillMaxWidth()) {
+    val numberFormat = NumberFormat.getIntegerInstance(currentLocale())
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("progress_exercise")) {
         SectionHeader(title = stringResource(R.string.progress_exercise))
-        if (report.sessions == 0) {
+        if (report.isEmpty) {
             EmptyState(
                 title = stringResource(R.string.progress_exercise_empty_title),
                 body = stringResource(R.string.progress_exercise_empty_body),
@@ -104,20 +140,26 @@ private fun ExerciseSection(report: ExerciseReport) {
                 modifier = Modifier.padding(top = spacing.md),
             )
             Row(Modifier.fillMaxWidth().padding(top = spacing.lg), horizontalArrangement = Arrangement.spacedBy(spacing.lg)) {
-                BigNumber(
+                Stat(
                     value = report.averageSessionMillis?.let(DurationFormat::clock) ?: "–",
                     label = stringResource(R.string.progress_average_session),
-                    style = PaintLifeTheme.numbers.medium,
+                    isRecord = false,
                     modifier = Modifier.weight(1f),
                 )
-                BigNumber(
-                    value = report.bestTimedMillis?.let(DurationFormat::clock) ?: "–",
-                    label = report.bestTimedAgainst?.let { stringResource(R.string.progress_best_against, stringResource(it.nameRes)) }
-                        ?: stringResource(R.string.progress_no_timed),
-                    style = PaintLifeTheme.numbers.medium,
+                Stat(
+                    value = report.mostReps?.let(numberFormat::format) ?: "–",
+                    label = stringResource(R.string.progress_most_in_session),
+                    isRecord = report.mostRepsIsRecord,
                     modifier = Modifier.weight(1f),
                 )
             }
+            Stat(
+                value = report.bestTimedMillis?.let(DurationFormat::clock) ?: "–",
+                label = report.bestTimedAgainst?.let { stringResource(R.string.progress_best_against, stringResource(it.nameRes)) }
+                    ?: stringResource(R.string.progress_no_timed),
+                isRecord = report.bestTimedIsRecord,
+                modifier = Modifier.padding(top = spacing.lg),
+            )
         }
         Text(
             text = stringResource(R.string.progress_league_beaten, report.levelsBeaten),
@@ -133,6 +175,15 @@ private fun ExerciseSection(report: ExerciseReport) {
                 )
             }
         }
+        if (report.beatenInPeriod.isNotEmpty()) {
+            val names = report.beatenInPeriod.map { stringResource(it.nameRes) }.joinToString(", ")
+            Text(
+                text = stringResource(R.string.progress_beaten_in_period, names),
+                style = MaterialTheme.typography.bodyMedium,
+                color = PaintLifeTheme.colors.textSecondary,
+                modifier = Modifier.padding(top = spacing.sm),
+            )
+        }
     }
 }
 
@@ -141,11 +192,13 @@ private fun QuietSection(state: ProgressUiState) {
     val report = state.quiet
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
-    val done = stringResource(R.string.quiet_day_done)
-    val notDone = stringResource(R.string.quiet_day_not_done)
-    val dayFormat = DateTimeFormatter.ofPattern("EEEE d MMMM", currentLocale())
-    PaintLifeCard(Modifier.fillMaxWidth()) {
+    val locale = currentLocale()
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("progress_quiet")) {
         SectionHeader(title = stringResource(R.string.progress_quiet))
+        if (report.isEmpty) {
+            EmptyState(title = stringResource(R.string.progress_quiet_empty_title), body = stringResource(R.string.progress_quiet_empty_body))
+            return@PaintLifeCard
+        }
         Row(Modifier.fillMaxWidth().padding(vertical = spacing.md), horizontalArrangement = Arrangement.spacedBy(spacing.lg)) {
             BigNumber(
                 value = report.completedSessions.toString(),
@@ -162,43 +215,97 @@ private fun QuietSection(state: ProgressUiState) {
                 modifier = Modifier.weight(1f),
             )
         }
+        val done = stringResource(R.string.quiet_day_done)
+        val notDone = stringResource(R.string.quiet_day_not_done)
+        val partFormat = stringResource(R.string.progress_quiet_day_minutes)
+        val dayFormat = DateTimeFormatter.ofPattern("EEEE d MMMM", locale)
+        val byDate = report.days.associateBy { it.date }
+        fun describe(date: LocalDate): String {
+            val day = byDate[date]
+            val status = when {
+                day == null -> notDone
+                day.completed -> done
+                day.minutes > 0 -> partFormat.format(day.minutes)
+                else -> notDone
+            }
+            return "${date.format(dayFormat)}, $status"
+        }
+        fun segments(day: QuietDayFill): List<SwatchSegment> =
+            if (day.fill > 0f) listOf(SwatchSegment(colors.swatchQuiet, day.fill)) else emptyList()
+
         val month = state.calendarMonth
         if (month != null) {
             SwatchCalendar(
                 month = month,
-                fills = report.days.filter { it.second }.associate { it.first to listOf(SwatchSegment(colors.swatchQuiet, 1f)) },
-                describe = { date, painted -> "${date.format(dayFormat)}, ${if (painted) done else notDone}" },
+                fills = report.days.filter { it.fill > 0f }.associate { it.date to segments(it) },
+                describe = { date, _ -> describe(date) },
             )
         } else if (report.days.size > 1) {
             SwatchWeek(
-                days = report.days.map { SwatchDay(it.first, paintedOrEmpty(it.second, colors.swatchQuiet)) },
-                describe = { day -> "${day.date.format(dayFormat)}, ${if (day.segments.isEmpty()) notDone else done}" },
+                days = report.days.map { SwatchDay(it.date, segments(it)) },
+                describe = { day -> describe(day.date) },
             )
         }
-        val daysWith = report.days.count { it.second }
-        Text(
-            text = pluralStringResource(R.plurals.progress_days_with_quiet, daysWith, daysWith, report.days.size),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(top = spacing.md),
-        )
+        if (state.period != ProgressPeriod.Today && report.countedDays > 0) {
+            Text(
+                text = pluralStringResource(R.plurals.progress_days_with_quiet, report.countedDays, report.daysWithFull, report.countedDays),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = spacing.md).testTag("progress_quiet_consistency"),
+            )
+        }
+        if (report.weeks.isNotEmpty()) {
+            Column(Modifier.padding(top = spacing.sm), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                report.weeks.forEach { week ->
+                    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = shortRange(week.start, week.end, locale),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.textSecondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = pluralStringResource(R.plurals.progress_week_days, week.countedDays, week.daysWithFull, week.countedDays),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun TimeSection(report: TimeReport) {
+private fun TimeSection(section: TimeSection) {
     val spacing = PaintLifeTheme.spacing
-    PaintLifeCard(Modifier.fillMaxWidth()) {
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("progress_time")) {
         SectionHeader(title = stringResource(R.string.progress_time))
+        val report = when (section) {
+            is TimeSection.Locked -> {
+                EmptyState(
+                    title = stringResource(R.string.my_time_observation_title, section.recordedDays),
+                    body = stringResource(R.string.progress_time_locked_body),
+                    modifier = Modifier.testTag("progress_time_locked"),
+                )
+                return@PaintLifeCard
+            }
+            is TimeSection.Ready -> section.report
+        }
         if (report.isEmpty) {
             EmptyState(title = stringResource(R.string.progress_time_empty_title), body = stringResource(R.string.progress_time_empty_body))
             return@PaintLifeCard
         }
         SubHeading(stringResource(R.string.progress_hours_per_category))
-        CategoryBars(report.categories, report.unclassifiedMinutes)
+        CategoryBars(report.categories, report.unrecordedMinutes)
         if (report.hasPlans) {
             SubHeading(stringResource(R.string.progress_planned_vs_actual))
-            PlannedVsActualBars(report.categories)
+            PlannedVsActualBars(report.planned)
+            Text(
+                text = pluralStringResource(R.plurals.progress_planned_days, report.plannedDays, report.plannedDays),
+                style = MaterialTheme.typography.bodySmall,
+                color = PaintLifeTheme.colors.textSecondary,
+                modifier = Modifier.padding(top = spacing.sm),
+            )
         }
         if (report.days.size > 1) {
             SubHeading(stringResource(R.string.progress_daily_distribution))

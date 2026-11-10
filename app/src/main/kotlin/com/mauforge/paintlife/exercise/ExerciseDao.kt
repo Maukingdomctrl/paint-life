@@ -11,8 +11,17 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Reps and session count for one local day (sessions with at least one rep). */
+/** Reps and session count for one local day or range of days (sessions with at least one rep). */
 data class ExerciseDayTotals(val reps: Int, val sessions: Int)
+
+/**
+ * Finished sessions with at least one rep in a range of days: [volumeSessions] normal sessions
+ * and their [volumeActiveMillis] (for the average), and the most reps in any one session.
+ */
+data class ExerciseRangeStats(val volumeSessions: Int, val volumeActiveMillis: Long, val mostReps: Int)
+
+/** All-time records over finished sessions; null while there is none. */
+data class ExerciseRecords(val mostReps: Int?, val fastestTimedMillis: Long?)
 
 /** Exercise sessions. Multi-step writes are composed in [ExerciseRepository]. */
 @Dao
@@ -67,6 +76,35 @@ interface ExerciseDao {
             "WHERE startDate = :date AND repetitions > 0",
     )
     fun observeDayTotals(date: LocalDate): Flow<ExerciseDayTotals>
+
+    /** [observeDayTotals] over the days [from] to [to] (inclusive). */
+    @Query(
+        "SELECT COALESCE(SUM(repetitions), 0) AS reps, COUNT(*) AS sessions FROM exercise_session " +
+            "WHERE startDate BETWEEN :from AND :to AND repetitions > 0",
+    )
+    fun observeRangeTotals(from: LocalDate, to: LocalDate): Flow<ExerciseDayTotals>
+
+    /** Finished sessions with reps that started between [from] and [to] (inclusive). */
+    @Query(
+        "SELECT COALESCE(SUM(CASE WHEN type = 'VOLUME' THEN 1 ELSE 0 END), 0) AS volumeSessions, " +
+            "COALESCE(SUM(CASE WHEN type = 'VOLUME' THEN activeDurationMillis ELSE 0 END), 0) AS volumeActiveMillis, " +
+            "COALESCE(MAX(repetitions), 0) AS mostReps FROM exercise_session " +
+            "WHERE startDate BETWEEN :from AND :to AND repetitions > 0 AND status NOT IN ('RUNNING', 'PAUSED')",
+    )
+    fun observeRangeStats(from: LocalDate, to: LocalDate): Flow<ExerciseRangeStats>
+
+    /** The fastest completed 1,000-rep run that started between [from] and [to] (earliest first on a tie). */
+    @Query(
+        "SELECT * FROM exercise_session WHERE type = 'TIMED_CHALLENGE' AND status = 'COMPLETED' " +
+            "AND startDate BETWEEN :from AND :to ORDER BY activeDurationMillis, endedAt, id LIMIT 1",
+    )
+    fun observeFastestTimed(from: LocalDate, to: LocalDate): Flow<ExerciseSessionEntity?>
+
+    @Query(
+        "SELECT (SELECT MAX(repetitions) FROM exercise_session WHERE repetitions > 0 AND status NOT IN ('RUNNING', 'PAUSED')) AS mostReps, " +
+            "(SELECT MIN(activeDurationMillis) FROM exercise_session WHERE type = 'TIMED_CHALLENGE' AND status = 'COMPLETED') AS fastestTimedMillis",
+    )
+    fun observeRecords(): Flow<ExerciseRecords>
 
     @Query("SELECT * FROM exercise_session WHERE status NOT IN ('RUNNING', 'PAUSED') ORDER BY startedAt DESC, id")
     fun observeFinishedSessions(): Flow<List<ExerciseSessionEntity>>

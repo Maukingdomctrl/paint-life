@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -96,16 +95,7 @@ class InsightsViewModel @Inject constructor(
         .distinctUntilChanged()
 
     /** Null once the observation week is over, else the days recorded so far. */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val observed: Flow<Int?> = preferences.myTimeObservationComplete.flatMapLatest { complete ->
-        if (complete) {
-            flowOf(null)
-        } else {
-            repository.observeObservedDays()
-                .onEach { if (it >= TimeRules.OBSERVATION_DAYS) preferences.markMyTimeObservationComplete() }
-                .map { it.takeIf { days -> days < TimeRules.OBSERVATION_DAYS } }
-        }
-    }.distinctUntilChanged()
+    private val observed: Flow<Int?> = observeObservation(repository, preferences)
 
     private val categories = repository.observeCategories()
 

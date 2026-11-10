@@ -43,12 +43,12 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CategoryBars(
     categories: List<CategoryTotal>,
-    unclassifiedMinutes: Int,
+    unrecordedMinutes: Int,
     modifier: Modifier = Modifier,
 ) {
     val colors = PaintLifeTheme.colors
     val sorted = categories.filter { it.actualMinutes > 0 }.sortedByDescending { it.actualMinutes }
-    val max = (sorted.maxOfOrNull { it.actualMinutes } ?: 0).coerceAtLeast(unclassifiedMinutes).coerceAtLeast(1)
+    val max = (sorted.maxOfOrNull { it.actualMinutes } ?: 0).coerceAtLeast(unrecordedMinutes).coerceAtLeast(1)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(PaintLifeTheme.spacing.md)) {
         sorted.forEach { category ->
             BarRow(
@@ -59,11 +59,11 @@ fun CategoryBars(
                 isDistraction = category.isDistraction,
             )
         }
-        if (unclassifiedMinutes > 0) {
+        if (unrecordedMinutes > 0) {
             BarRow(
                 name = stringResource(R.string.progress_unrecorded),
-                value = DurationFormat.hoursMinutes(unclassifiedMinutes),
-                fraction = unclassifiedMinutes.toFloat() / max,
+                value = DurationFormat.hoursMinutes(unrecordedMinutes),
+                fraction = unrecordedMinutes.toFloat() / max,
                 color = null,
                 isDistraction = false,
             )

@@ -42,11 +42,6 @@ class NavigationTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    /** Iteration that delivers each destination still showing its placeholder. */
-    private val deliveredIn = mapOf(
-        TopLevelDestination.PROGRESS to 7,
-    )
-
     private fun waitForToday() {
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodes(hasTestTag("today_content")).fetchSemanticsNodes().isNotEmpty()
@@ -62,13 +57,11 @@ class NavigationTest {
     }
 
     @Test
-    fun eachUnbuiltTabOpensItsScreenAndLabelsItAsNotBuiltYet() {
-        deliveredIn.forEach { (destination, iteration) ->
-            composeRule.onNodeWithTag(navItemTestTag(destination)).performClick()
-            composeRule.onNodeWithTag(navItemTestTag(destination)).assertIsSelected()
-            composeRule.onNodeWithText(comingIn(iteration)).assertIsDisplayed()
-            composeRule.onNodeWithText(context.getString(R.string.not_built_badge)).assertIsDisplayed()
-        }
+    fun progressTabShowsTheRealReports() {
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.PROGRESS)).performClick()
+        waitForTag("progress_content")
+        composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.PROGRESS)).assertIsSelected()
+        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
     }
 
     @Test
@@ -143,13 +136,11 @@ class NavigationTest {
     @Test
     fun backFromAnotherTabReturnsToToday() {
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.PROGRESS)).performClick()
-        composeRule.onNodeWithText(comingIn(7)).assertIsDisplayed()
+        waitForTag("progress_content")
 
         composeRule.runOnUiThread { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
 
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.TODAY)).assertIsSelected()
         waitForToday()
     }
-
-    private fun comingIn(iteration: Int) = context.getString(R.string.coming_in_iteration, iteration)
 }

@@ -53,10 +53,14 @@ interface QuietDao {
     @Query("DELETE FROM quiet_session WHERE id = :id")
     suspend fun delete(id: String): Int
 
-    /** Finished sessions that count toward minutes, started between [from] and [to] (inclusive). */
+    /**
+     * Finished sessions that count toward minutes, started between [from] and [to] (inclusive).
+     * `+status` keeps SQLite on the startDate index: the status index would scan every finished
+     * session ever recorded.
+     */
     @Query(
         "SELECT startDate, status, activeDurationMillis, targetDurationMillis FROM quiet_session " +
-            "WHERE startDate BETWEEN :from AND :to AND status IN ('COMPLETED', 'ENDED_EARLY') ORDER BY startDate",
+            "WHERE startDate BETWEEN :from AND :to AND +status IN ('COMPLETED', 'ENDED_EARLY') ORDER BY startDate",
     )
     fun observeFinished(from: LocalDate, to: LocalDate): Flow<List<QuietSessionSummary>>
 }

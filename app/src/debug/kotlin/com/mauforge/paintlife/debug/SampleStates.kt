@@ -34,7 +34,10 @@ import com.mauforge.paintlife.progress.ExerciseReport
 import com.mauforge.paintlife.progress.ProgressPeriod
 import com.mauforge.paintlife.progress.ProgressUiState
 import com.mauforge.paintlife.progress.QuietReport
+import com.mauforge.paintlife.progress.QuietDayFill
+import com.mauforge.paintlife.progress.QuietWeek
 import com.mauforge.paintlife.progress.TimeReport
+import com.mauforge.paintlife.progress.TimeSection
 import com.mauforge.paintlife.quiet.QuietDay
 import com.mauforge.paintlife.quiet.QuietPhase
 import com.mauforge.paintlife.quiet.QuietUiState
@@ -468,32 +471,82 @@ object ProgressSamples {
         CategoryTotal("Exercise", "forest", 225, 210, false),
     )
 
+    private fun quietDays(days: List<LocalDate>, done: (Int) -> Boolean) = days.mapIndexed { i, d ->
+        when {
+            done(i) -> QuietDayFill(d, completed = true, fill = 1f, minutes = 5)
+            i % 5 == 1 -> QuietDayFill(d, completed = false, fill = 0.6f, minutes = 3)
+            else -> QuietDayFill(d, completed = false, fill = 0f, minutes = 0)
+        }
+    }
+
+    private fun quietReport(days: List<QuietDayFill>, weeks: List<QuietWeek> = emptyList()) = QuietReport(
+        completedSessions = days.count { it.completed },
+        totalMinutes = days.sumOf { it.minutes },
+        days = days,
+        daysWithFull = days.count { it.completed },
+        countedDays = days.size,
+        weeks = weeks,
+    )
+
+    private val weekTime = TimeReport(
+        categories = weekCategories.map { it.copy(plannedMinutes = null) },
+        unrecordedMinutes = 610,
+        days = weekDays.mapIndexed { i, d -> distribution(d, i) },
+        planned = weekCategories.filter { it.plannedMinutes != null },
+        plannedDays = 5,
+    )
+
+    private fun exercise(reps: Int, sessions: Int, unlocked: Int, beaten: Int, beatenNow: Int?) = ExerciseReport(
+        totalReps = reps,
+        sessions = sessions,
+        averageSessionMillis = minutes(14, 20),
+        mostReps = 220,
+        mostRepsIsRecord = true,
+        bestTimedMillis = minutes(28, 31),
+        bestTimedAgainst = cats[beaten.coerceAtMost(cats.lastIndex)],
+        bestTimedIsRecord = false,
+        unlockedCats = cats.take(unlocked),
+        levelsBeaten = beaten,
+        beatenInPeriod = listOfNotNull(beatenNow?.let { cats[it] }),
+    )
+
     val todayEmpty = ProgressUiState(
         period = ProgressPeriod.Today,
         start = SampleDay,
         end = SampleDay,
-        exercise = ExerciseReport(0, 0, null, null, null, unlockedCats = cats.take(1), levelsBeaten = 0),
-        quiet = QuietReport(0, 0, listOf(SampleDay to false)),
-        time = TimeReport(emptyList(), 0, emptyList()),
+        exercise = ExerciseReport(0, 0, null, null, false, null, null, false, unlockedCats = cats.take(1), levelsBeaten = 0, beatenInPeriod = emptyList()),
+        quiet = quietReport(emptyList()),
+        time = TimeSection.Ready(TimeReport(emptyList(), 0, emptyList())),
     )
 
     val lastSevenDays = ProgressUiState(
         period = ProgressPeriod.Last7Days,
         start = weekDays.first(),
         end = weekDays.last(),
-        exercise = ExerciseReport(540, 5, minutes(14, 20), minutes(28, 31), cats[2], unlockedCats = cats.take(3), levelsBeaten = 2),
-        quiet = QuietReport(4, 20, weekDays.mapIndexed { i, d -> d to (i % 2 == 0) }),
-        time = TimeReport(weekCategories, unclassifiedMinutes = 610, days = weekDays.mapIndexed { i, d -> distribution(d, i) }),
+        exercise = exercise(540, 5, unlocked = 3, beaten = 2, beatenNow = 1),
+        quiet = quietReport(quietDays(weekDays) { it % 2 == 0 }),
+        time = TimeSection.Ready(weekTime),
     )
+
+    /** A multi-day period before the observation week is over. */
+    val lastSevenDaysObserving = lastSevenDays.copy(time = TimeSection.Locked(recordedDays = 4))
 
     val thisMonth: ProgressUiState = run {
         val days = (1..12).map { LocalDate.of(2026, 11, it) }
+        val fills = quietDays(days) { it % 3 != 2 }
         lastSevenDays.copy(
             period = ProgressPeriod.ThisMonth,
             start = days.first(),
             end = days.last(),
-            quiet = QuietReport(8, 40, days.map { it to (it.dayOfMonth % 3 != 0) }),
-            time = lastSevenDays.time.copy(days = days.mapIndexed { i, d -> distribution(d, i) }),
+            quiet = quietReport(
+                fills,
+                listOf(
+                    QuietWeek(days[0], days[0], 1, 1),
+                    QuietWeek(days[1], days[7], 5, 7),
+                    QuietWeek(days[8], days[11], 3, 4),
+                ),
+            ),
+            time = TimeSection.Ready(weekTime.copy(days = days.mapIndexed { i, d -> distribution(d, i) })),
         )
     }
 
@@ -503,9 +556,9 @@ object ProgressSamples {
             period = ProgressPeriod.LastMonth,
             start = days.first(),
             end = days.last(),
-            exercise = ExerciseReport(2_310, 19, minutes(15, 5), minutes(28, 47), cats[0], unlockedCats = cats.take(2), levelsBeaten = 1),
-            quiet = QuietReport(17, 85, days.map { it to (it.dayOfMonth % 4 != 1) }),
-            time = lastSevenDays.time.copy(days = days.mapIndexed { i, d -> distribution(d, i) }),
+            exercise = exercise(2_310, 19, unlocked = 2, beaten = 1, beatenNow = null),
+            quiet = quietReport(quietDays(days) { it % 4 != 1 }),
+            time = TimeSection.Ready(weekTime.copy(days = days.mapIndexed { i, d -> distribution(d, i) })),
         )
     }
 }

@@ -153,7 +153,7 @@ private fun Ready(
                 if (report.categories.isEmpty()) {
                     Text(text = stringResource(R.string.insights_nothing_recorded), style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    CategoryBars(report.categories, unclassifiedMinutes = 0, modifier = Modifier.fillMaxWidth())
+                    CategoryBars(report.categories, unrecordedMinutes = 0, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
@@ -185,7 +185,7 @@ private fun Ready(
                     modifier = Modifier.testTag("insights_distraction_total"),
                 )
                 if (report.distractionMinutes > 0) {
-                    CategoryBars(report.distractionCategories, unclassifiedMinutes = 0, modifier = Modifier.fillMaxWidth())
+                    CategoryBars(report.distractionCategories, unrecordedMinutes = 0, modifier = Modifier.fillMaxWidth())
                     DayBars(report.distractionByDay)
                 }
                 QuietButton(stringResource(R.string.insights_choose_distractions), onOpenCategories, Modifier.fillMaxWidth())
