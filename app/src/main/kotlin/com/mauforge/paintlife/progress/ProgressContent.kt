@@ -50,6 +50,7 @@ fun ProgressContent(
     state: ProgressUiState,
     onPeriodChange: (ProgressPeriod) -> Unit,
     modifier: Modifier = Modifier,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     val spacing = PaintLifeTheme.spacing
     PaintLifeScreen(modifier = modifier.testTag("progress_content")) {
@@ -73,6 +74,8 @@ fun ProgressContent(
         item(key = "exercise") { ExerciseSection(state.exercise) }
         item(key = "quiet") { QuietSection(state) }
         item(key = "time") { TimeSection(state.time) }
+        // Below the reports: "Your data" (backup export and import).
+        if (footer != null) item(key = "footer") { footer() }
     }
 }
 

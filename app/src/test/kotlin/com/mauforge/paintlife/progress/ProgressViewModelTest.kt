@@ -1,5 +1,6 @@
 package com.mauforge.paintlife.progress
 
+import com.mauforge.paintlife.core.backup.DataReplaced
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,7 +14,11 @@ import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.time.SessionTimer
 import com.mauforge.paintlife.core.time.TimerCheckpoint
 import com.mauforge.paintlife.exercise.ExerciseRepository
+import com.mauforge.paintlife.mytime.ApprovedProposal
 import com.mauforge.paintlife.mytime.EntryDraft
+import com.mauforge.paintlife.mytime.ProposalBlock
+import com.mauforge.paintlife.mytime.ScheduleRepository
+import com.mauforge.paintlife.mytime.ScheduleRules
 import com.mauforge.paintlife.mytime.MyTimeLaunch
 import com.mauforge.paintlife.mytime.Resolution
 import com.mauforge.paintlife.mytime.SaveResult
@@ -168,20 +173,20 @@ class ProgressViewModelTest {
         actual("work", day.atTime(7, 0), day.atTime(8, 0))
 
         val today = TodayViewModel(
-            TodayRepository(db, time.provider), exercise, quiet, timeRepository, MyTimeLaunch(), preferences, time.provider, time.dayClock,
+            TodayRepository(db, time.provider), exercise, quiet, timeRepository, MyTimeLaunch(), preferences, time.provider, time.dayClock, DataReplaced(),
         ).let { collected(it, it.state) }
         val todayContent = runBlocking {
-            withTimeout(10_000) { today.state.first { s: TodayScreenState -> s.content?.exercise?.reps == 100 && s.content?.timeByCategory?.isNotEmpty() == true } }
+            withTimeout(10_000) { today.state.first { s: TodayScreenState -> s.content?.exercise?.reps == 100 && s.content?.timeByCategory.orEmpty().isNotEmpty() } }
         }.content!!
         val report = progress().select(ProgressPeriod.Today)
 
-        assertEquals(todayContent.exercise!!.reps, report.exercise.totalReps)
-        assertEquals(todayContent.exercise!!.sessions, report.exercise.sessions)
-        assertEquals(todayContent.quiet!!.minutes, report.quiet.totalMinutes)
-        assertEquals(todayContent.quiet!!.completed, report.quiet.completedSessions > 0)
-        assertEquals(todayContent.quiet!!.fill, report.quiet.days.single().fill)
+        assertEquals(todayContent.exercise.reps, report.exercise.totalReps)
+        assertEquals(todayContent.exercise.sessions, report.exercise.sessions)
+        assertEquals(todayContent.quiet.minutes, report.quiet.totalMinutes)
+        assertEquals(todayContent.quiet.completed, report.quiet.completedSessions > 0)
+        assertEquals(todayContent.quiet.fill, report.quiet.days.single().fill)
         val ready = (report.time as TimeSection.Ready).report
-        assertEquals(todayContent.timeByCategory!!.map { it.categoryName to it.minutes }, ready.categories.map { it.name to it.actualMinutes })
+        assertEquals(todayContent.timeByCategory.map { it.categoryName to it.minutes }, ready.categories.map { it.name to it.actualMinutes })
         val todayUnrecorded = todayContent.strip!!.filter { it.colorKey == null }.sumOf { it.endMinute - it.startMinute }
         assertEquals(todayUnrecorded, ready.unrecordedMinutes)
         assertEquals(8 * 60, ready.unrecordedMinutes)
@@ -198,7 +203,7 @@ class ProgressViewModelTest {
         quietSession(day.atTime(8, 0), SessionStatus.CANCELLED, 100_000)
 
         val controller = QuietSessionController(quiet, FakeSessionClock(now = 1_000, boot = 1).clock, scope)
-        val quietScreen = QuietViewModel(context, controller, quiet, preferences, time.dayClock).let { collected(it, it.state) }
+        val quietScreen = QuietViewModel(context, controller, quiet, preferences, time.dayClock, DataReplaced()).let { collected(it, it.state) }
         val month = runBlocking {
             withTimeout(10_000) { quietScreen.state.first { s: QuietScreenState -> (s.content?.monthCompletedSessions ?: 0) > 0 } }
         }.content!!
@@ -275,6 +280,26 @@ class ProgressViewModelTest {
         val week = (viewModel.await { it.time is TimeSection.Ready }.time as TimeSection.Ready).report
         assertEquals(8 * 60, week.categories.single().actualMinutes)
         assertTrue(runBlocking { preferences.myTimeObservationComplete.first() })
+    }
+
+    @Test
+    fun aPlanOnTheDayBeforeThePeriodKeepsItsScheduleOutOfTheFirstDay() {
+        // Two days ago: a plan is made for yesterday morning, then a schedule (sleep 23:00 to 07:00) is approved.
+        time.setLocal(day.minusDays(2).atTime(9, 0))
+        runBlocking {
+            val yesterday = day.minusDays(1)
+            val plan = EntryDraft(null, TimeEntryKind.PLANNED, "work", null, yesterday.atTime(9, 0).atZone(kolkata).toInstant(), yesterday.atTime(10, 0).atZone(kolkata).toInstant(), zone = kolkata)
+            assertTrue(timeRepository.save(plan, Resolution.None) is SaveResult.Saved)
+            ScheduleRepository(db, time.provider).approve(ApprovedProposal("Nights", listOf(ProposalBlock("b", "sleep", 1380, 420, ScheduleRules.ALL_DAYS)), null, null))
+        }
+        time.setLocal(day.atTime(9, 0))
+
+        val report = (progress().select(ProgressPeriod.Today).time as TimeSection.Ready).report
+
+        // Yesterday had a plan of its own, so the schedule's night (23:00 into this morning) was
+        // never planned for it. Today's plan is only tonight's hour before midnight, as My Time shows.
+        assertEquals(listOf("Sleep" to 60), report.planned.map { it.name to it.plannedMinutes })
+        assertEquals(1, report.plannedDays)
     }
 
     @Test

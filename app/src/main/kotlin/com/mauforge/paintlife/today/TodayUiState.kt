@@ -34,7 +34,7 @@ data class CategoryMinutes(val categoryName: String, val colorKey: String, val m
 @Immutable
 data class TodayStripBlock(val startMinute: Int, val endMinute: Int, val colorKey: String?)
 
-/** Quick actions are shown only once the feature they open is built. */
+/** The shortcuts under the priorities. */
 enum class QuickAction { StartExercise, QuietTime, LogTime }
 
 /** Unfinished priorities from an earlier day the user may copy to today. */
@@ -47,23 +47,17 @@ data class CarryOverUi(
     val freePlaces: Int,
 )
 
-/**
- * Everything the Today screen shows. A null tracking field means that feature is not tracked
- * yet (it arrives in a later iteration); the screen says so rather than showing a zero.
- */
+/** Everything the Today screen shows. */
 @Immutable
 data class TodayUiState(
     val date: LocalDate,
     val dayPart: DayPart,
     val priorities: List<PriorityItem>,
     val carryOver: CarryOverUi? = null,
-    /** Null until Exercise is built (Iteration 4). */
-    val exercise: ExerciseToday? = null,
-    /** Null until Quiet Time is built (Iteration 5). */
-    val quiet: QuietToday? = null,
-    /** Null until My Time is built (Iteration 6). */
-    val timeByCategory: List<CategoryMinutes>? = null,
-    /** Null until My Time is built (Iteration 6); the strip is hidden until then. */
+    val exercise: ExerciseToday = ExerciseToday(reps = 0, sessions = 0),
+    val quiet: QuietToday = QuietToday(completed = false, minutes = 0, fill = 0f),
+    val timeByCategory: List<CategoryMinutes> = emptyList(),
+    /** Null until today's time has been read; the strip is hidden until then. */
     val strip: List<TodayStripBlock>? = null,
     val quickActions: List<QuickAction> = emptyList(),
     /** Set each morning until last night's sleep is logged (or the card is dismissed). */
@@ -72,7 +66,7 @@ data class TodayUiState(
     /** Length of today in minutes (1380/1440/1500 around DST changes). */
     val dayLengthMinutes: Int = 1440,
 ) {
-    val timeLoggedMinutes: Int get() = timeByCategory.orEmpty().sumOf { it.minutes }
+    val timeLoggedMinutes: Int get() = timeByCategory.sumOf { it.minutes }
     val prioritiesDone: Int get() = priorities.count { it.done }
     val canAddPriority: Boolean get() = priorities.size < MAX_PRIORITIES
 

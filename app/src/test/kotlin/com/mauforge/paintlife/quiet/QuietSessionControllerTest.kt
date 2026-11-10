@@ -255,6 +255,21 @@ class QuietSessionControllerTest {
     }
 
     @Test
+    fun aSessionPausedAtOnceAndLeftForThirtyMinutesLeavesNothingBehind() {
+        val session = blocking { controller.start() }.session
+        pass(400)
+        controller.pause()
+        pass(QuietRules.PAUSE_LIMIT_MILLIS)
+
+        blocking { controller.checkDeadlines() }
+
+        // Under a second of quiet: no zero-minute session in the history, as with Finish.
+        assertNull(live)
+        assertNull(blocking { app.db.quietDao().session(session.id) })
+        assertEquals(QuietDayTotals.empty(day), today())
+    }
+
+    @Test
     fun resumingAfterThePauseLimitEndsTheSessionInstead() {
         val session = blocking { controller.start() }.session
         pass(60_000)

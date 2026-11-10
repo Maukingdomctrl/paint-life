@@ -14,11 +14,6 @@
     <string name="title_my_time">My Time</string>
     <string name="title_progress">Progress</string>
 
-    <!-- Honest placeholders for destinations not built yet -->
-    <string name="not_built_badge">Not built yet</string>
-    <string name="coming_in_iteration">Coming in Iteration %1$d</string>
-    <string name="not_built_note">Nothing on this screen is recorded or calculated yet.</string>
-
     <!-- Shared actions -->
     <string name="action_start">Start</string>
     <string name="action_pause">Pause</string>
@@ -87,7 +82,6 @@
     <string name="today_so_far">Today so far</string>
     <string name="today_strip_description">Today so far: %1$s recorded, %2$s not recorded</string>
     <string name="today_strip_legend">Hatched stretches are time that passed without a record.</string>
-    <string name="today_not_tracked">Not tracked yet</string>
     <string name="today_add_title">Add a priority</string>
     <string name="today_edit_title">Edit priority</string>
     <string name="today_priority_label">Priority</string>
@@ -351,6 +345,7 @@
     <string name="my_time_fitted">Saved. Overlapping entries were changed.</string>
     <string name="my_time_notice_invalid">An entry is 1 minute to 24 hours long.</string>
     <string name="my_time_notice_missing">That entry no longer exists.</string>
+    <string name="my_time_notice_future">That time hasn\'t happened yet. Plan it instead.</string>
     <string name="my_time_notice_undo_failed">Couldn\'t undo. Those entries have changed since.</string>
     <string name="overlap_body_planned">%1$s (%2$s) overlaps these plans. Planned entries can\'t overlap each other, so choose what happens to them.</string>
     <string name="action_plan_activity">Plan an activity</string>
@@ -502,4 +497,64 @@
     <string name="progress_day_recorded">%1$s, %2$s recorded</string>
     <string name="progress_unrecorded">Not recorded</string>
     <string name="progress_time_note">Totals only. There\'s no score here.</string>
+
+    <!-- Your data: backup export and import -->
+    <string name="backup_title">Your data</string>
+    <string name="backup_body">Everything you record stays on this phone. A backup is a file you save yourself, and can import again later.</string>
+    <string name="backup_export">Export backup</string>
+    <string name="backup_import">Import backup</string>
+    <string name="backup_exported">Backup saved: %1$s.</string>
+    <string name="backup_imported">Backup imported: %1$s.</string>
+    <string name="backup_nothing">nothing recorded</string>
+    <plurals name="backup_count_priorities">
+        <item quantity="one">%1$d priority</item>
+        <item quantity="other">%1$d priorities</item>
+    </plurals>
+    <plurals name="backup_count_exercise">
+        <item quantity="one">%1$d exercise session</item>
+        <item quantity="other">%1$d exercise sessions</item>
+    </plurals>
+    <plurals name="backup_count_quiet">
+        <item quantity="one">%1$d quiet session</item>
+        <item quantity="other">%1$d quiet sessions</item>
+    </plurals>
+    <plurals name="backup_count_entries">
+        <item quantity="one">%1$d time entry</item>
+        <item quantity="other">%1$d time entries</item>
+    </plurals>
+    <plurals name="backup_count_schedules">
+        <item quantity="one">%1$d schedule</item>
+        <item quantity="other">%1$d schedules</item>
+    </plurals>
+    <string name="backup_export_failed">Couldn\'t save the backup file. Nothing on this phone was changed.</string>
+    <string name="backup_no_picker">This phone has no app for choosing files, so a backup can\'t be saved or opened here.</string>
+    <string name="backup_blocked">Finish these first, then import: %1$s. Nothing was changed.</string>
+    <string name="backup_blocked_exercise">your exercise session</string>
+    <string name="backup_blocked_quiet">your quiet time</string>
+    <string name="backup_blocked_now_doing">the activity you\'re doing now</string>
+    <string name="backup_problem_not_a_backup">That file isn\'t a Paint Life backup. Nothing was changed.</string>
+    <string name="backup_problem_too_new">That backup was made by a newer version of Paint Life. Update the app, then import it. Nothing was changed.</string>
+    <string name="backup_problem_too_large">That file is too large to be a Paint Life backup. Nothing was changed.</string>
+    <string name="backup_problem_unreadable">Couldn\'t read that file. Nothing was changed.</string>
+    <string name="backup_problem_invalid">That backup can\'t be imported: %1$s. Nothing was changed.</string>
+    <string name="backup_reason_damaged">part of it is missing or damaged</string>
+    <string name="backup_reason_bad_time">it has a date or time zone that doesn\'t exist</string>
+    <string name="backup_reason_unknown_value">it has a value this version doesn\'t know</string>
+    <string name="backup_reason_duplicate">two of its records share an id</string>
+    <string name="backup_reason_broken_link">one of its records points at another that is missing</string>
+    <string name="backup_reason_priorities">its priorities don\'t fit three a day</string>
+    <string name="backup_reason_cat_league">its Cat League levels don\'t add up</string>
+    <string name="backup_reason_sessions">it has a session that is still open or has impossible values</string>
+    <string name="backup_reason_categories">it has a category Paint Life doesn\'t have</string>
+    <string name="backup_reason_time_entries">one of its time entries isn\'t 1 minute to 24 hours long</string>
+    <string name="backup_reason_overlap">two of its time entries overlap</string>
+    <string name="backup_reason_schedules">one of its schedules has blocks that don\'t fit</string>
+    <string name="backup_import_title">Replace everything with this backup?</string>
+    <string name="backup_import_file">Backup from %1$s</string>
+    <string name="backup_import_in_file">In the backup: %1$s.</string>
+    <string name="backup_import_on_phone">On this phone now: %1$s.</string>
+    <string name="backup_import_warning">Importing replaces everything on this phone with what is in the backup. This can\'t be undone.</string>
+    <string name="backup_import_current_saved">Current data saved.</string>
+    <string name="backup_import_export_first">Export current data first</string>
+    <string name="backup_import_replace">Replace everything</string>
 </resources>

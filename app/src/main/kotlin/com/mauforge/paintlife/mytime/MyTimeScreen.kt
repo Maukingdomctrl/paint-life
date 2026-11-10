@@ -137,6 +137,7 @@ fun MyTimeScreen(
             MyTimeNotice.Kind.Invalid -> R.string.my_time_notice_invalid
             MyTimeNotice.Kind.Missing -> R.string.my_time_notice_missing
             MyTimeNotice.Kind.UndoFailed -> R.string.my_time_notice_undo_failed
+            MyTimeNotice.Kind.Future -> R.string.my_time_notice_future
         }
         // Cleared only once shown: clearing first would change this effect's key and cancel it.
         try {

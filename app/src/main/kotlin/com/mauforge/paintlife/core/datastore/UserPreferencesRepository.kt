@@ -9,12 +9,26 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * The flags that travel in a backup: the ones that describe the user's progress. Phone-specific
+ * ones (notification permission asked, sleep card dismissed today) stay on the phone.
+ */
+data class BackupFlags(
+    val firstLaunchDate: LocalDate?,
+    val exerciseSafetyRead: Boolean,
+    val victorySeenUpTo: Instant,
+    val observationComplete: Boolean,
+    val insightsPeriod: String?,
+    val progressPeriod: String?,
+)
 
 /** Small app preferences. Records, not settings, belong in Room. */
 @Singleton
@@ -95,6 +109,35 @@ class UserPreferencesRepository @Inject constructor(
 
     suspend fun setProgressPeriod(name: String) {
         dataStore.edit { prefs -> prefs[PROGRESS_PERIOD] = name }
+    }
+
+    /** The progress flags as they are now, for a backup. */
+    suspend fun backupFlags(): BackupFlags {
+        val prefs = data.first()
+        return BackupFlags(
+            firstLaunchDate = prefs[FIRST_LAUNCH_DATE]?.let(LocalDate::parse),
+            exerciseSafetyRead = prefs[EXERCISE_SAFETY_READ] == true,
+            victorySeenUpTo = Instant.ofEpochMilli(prefs[VICTORY_SEEN_UP_TO] ?: 0L),
+            observationComplete = prefs[MY_TIME_OBSERVATION_COMPLETE] == true,
+            insightsPeriod = prefs[MY_TIME_INSIGHTS_PERIOD],
+            progressPeriod = prefs[PROGRESS_PERIOD],
+        )
+    }
+
+    /**
+     * Replaces the progress flags with those of an imported backup, in one write. Unlike the
+     * everyday setters this can move a flag back, because the records they describe were replaced
+     * too. A backup without a first-launch date keeps this phone's.
+     */
+    suspend fun restoreBackupFlags(flags: BackupFlags) {
+        dataStore.edit { prefs ->
+            flags.firstLaunchDate?.let { prefs[FIRST_LAUNCH_DATE] = it.toString() }
+            prefs[EXERCISE_SAFETY_READ] = flags.exerciseSafetyRead
+            prefs[VICTORY_SEEN_UP_TO] = flags.victorySeenUpTo.toEpochMilli()
+            prefs[MY_TIME_OBSERVATION_COMPLETE] = flags.observationComplete
+            if (flags.insightsPeriod == null) prefs.remove(MY_TIME_INSIGHTS_PERIOD) else prefs[MY_TIME_INSIGHTS_PERIOD] = flags.insightsPeriod
+            if (flags.progressPeriod == null) prefs.remove(PROGRESS_PERIOD) else prefs[PROGRESS_PERIOD] = flags.progressPeriod
+        }
     }
 
     private companion object {

@@ -108,7 +108,9 @@ class ProgressViewModel @Inject constructor(
             val now = if (to >= today) ticks else flowOf(clock.now())
             combine(
                 time.observeEntries(TimeEntryKind.ACTUAL, readFrom, readTo),
-                time.observeEntries(TimeEntryKind.PLANNED, readFrom, readTo),
+                // Plans from the day before too: whether it has its own plan decides whether its
+                // schedule blocks reach into the first day (as in My Time and Insights).
+                time.observeEntries(TimeEntryKind.PLANNED, DayView.readWindow(from.minusDays(1)).first, readTo),
                 time.observeSchedules(),
                 time.observeCategories(),
                 now,

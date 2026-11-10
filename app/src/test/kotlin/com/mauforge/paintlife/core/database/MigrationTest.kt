@@ -1,15 +1,23 @@
 package com.mauforge.paintlife.core.database
 
+import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.sqlite.execSQL
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.mauforge.paintlife.core.time.TimeProvider
+import com.mauforge.paintlife.today.AddResult
+import com.mauforge.paintlife.today.TodayRepository
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Clock
+import java.time.LocalDate
 import java.time.ZoneId
 
 /**
@@ -243,6 +251,97 @@ class MigrationTest {
             assertEquals(emptyList<List<String?>>(), db.rows("PRAGMA foreign_key_check"))
             assertEquals(listOf(listOf("0")), db.rows("SELECT COUNT(*) FROM current_activity"))
         }
+    }
+
+    /**
+     * The whole way, as on a phone: a version 1 database file with records in every table is
+     * opened by the app's own Room setup (not the test helper), which migrates 1 to 5, checks the
+     * result against the current schema, and then reads, writes and reopens it.
+     */
+    @Test
+    fun aVersion1DatabaseOpensInTheAppWithEveryRecordAndKeepsWorkingAfterARestart() {
+        helper.createDatabase(1).use { db ->
+            SeedData.levels.forEach {
+                val unlocked = if (it.level <= 2) 1 else 0
+                val unlockedAt = if (it.level == 2) "4900" else "NULL"
+                val beatenAt = if (it.level == 1) "4900" else "NULL"
+                db.execSQL(
+                    "INSERT INTO challenge_level (level, catKey, benchmarkMillis, isUnlocked, unlockedAt, beatenAt) VALUES " +
+                        "(${it.level}, '${it.catKey}', ${it.benchmarkMinutes * 60_000}, $unlocked, $unlockedAt, $beatenAt)",
+                )
+            }
+            SeedData.categories.forEachIndexed { index, c ->
+                val distraction = if (c.isDistraction) 1 else 0
+                db.execSQL(
+                    "INSERT INTO activity_category (id, name, colorKey, isDistraction, sortOrder, isBuiltIn, isArchived) VALUES " +
+                        "('${c.id}', '${c.name}', '${c.colorKey}', $distraction, $index, 1, 0)",
+                )
+            }
+            db.execSQL("INSERT INTO daily_record (id, date, note, createdAt, updatedAt) VALUES ('r1', '2026-11-08', 'kept', 50, 60)")
+            db.execSQL(
+                "INSERT INTO priority (id, date, position, title, isCompleted, completedAt, createdAt, updatedAt) VALUES " +
+                    "('p1', '2026-11-08', 0, 'First', 1, 70, 50, 70), ('p2', '2026-11-08', 1, 'Second', 0, NULL, 51, 51)",
+            )
+            db.execSQL(
+                "INSERT INTO exercise_session (id, type, status, challengeLevel, startedAt, zoneId, startDate, endedAt, repetitions, notes, " +
+                    "updatedAt, activeDurationMillis, activeAtSegmentStartMillis, segmentStartElapsedRealtime, bootCount) VALUES " +
+                    "('done', 'VOLUME', 'COMPLETED', NULL, 1000, 'Europe/London', '2026-11-08', 2000, 120, 'good', 2000, 900, 900, NULL, 4), " +
+                    "('timed', 'TIMED_CHALLENGE', 'COMPLETED', 1, 4000, 'Europe/London', '2026-11-09', 4900, 1000, NULL, 4900, 800, 0, NULL, 4)",
+            )
+            db.execSQL(
+                "INSERT INTO personal_best (key, kind, challengeLevel, value, sessionId, achievedAt, zoneId) VALUES " +
+                    "('timed_level_1', 'TIMED_CHALLENGE_TIME', 1, 800, 'timed', 4900, 'Europe/London')",
+            )
+            db.execSQL(
+                "INSERT INTO quiet_session (id, status, startedAt, zoneId, startDate, endedAt, targetDurationMillis, updatedAt, " +
+                    "activeDurationMillis, activeAtSegmentStartMillis, segmentStartElapsedRealtime, bootCount) VALUES " +
+                    "('q1', 'COMPLETED', 5000, 'Asia/Tokyo', '2026-11-09', 305000, 300000, 305000, 300000, 300000, NULL, 4)",
+            )
+            db.execSQL(
+                "INSERT INTO time_entry (id, kind, categoryId, startAt, endAt, zoneId, note, createdAt, updatedAt) VALUES " +
+                    "('night', 'ACTUAL', 'sleep', 0, 28800000, 'Europe/London', NULL, 30000000, 30000000)",
+            )
+            db.execSQL("INSERT INTO daily_schedule (id, name, status, createdAt, approvedAt, updatedAt) VALUES ('s1', 'Weekdays', 'APPROVED', 10, 20, 30)")
+            db.execSQL(
+                "INSERT INTO schedule_block (id, scheduleId, categoryId, startMinuteOfDay, endMinuteOfDay, daysOfWeekMask) VALUES " +
+                    "('b1', 's1', 'work', 540, 1020, 31)",
+            )
+        }
+        val context = instrumentation.targetContext
+        val path = context.getDatabasePath("migration-test.db").absolutePath
+        fun openAsTheAppDoes(): PaintLifeDatabase =
+            Room.databaseBuilder(context, PaintLifeDatabase::class.java, path).addMigrations(*allMigrations { zone }).addCallback(SeedCallback).build()
+
+        var app = openAsTheAppDoes()
+        runBlocking {
+            val dao = app.backupDao()
+            assertEquals(listOf("First" to zone, "Second" to zone), dao.priorities().map { it.title to it.createdZoneId })
+            assertEquals(listOf("kept"), dao.dailyRecords().map { it.note })
+            assertEquals(listOf("done" to 120, "timed" to 1000), dao.finishedExerciseSessions().map { it.id to it.repetitions })
+            // Rebuilding exercise_session did not cut the best time loose from its session.
+            assertEquals("timed", dao.personalBests().single().sessionId)
+            assertEquals(listOf(300_000L), dao.finishedQuietSessions().map { it.timer.activeDurationMillis })
+            assertEquals(listOf(ZoneId.of("Europe/London")), dao.timeEntries().map { it.endZoneId })
+            // Rebuilding daily_schedule did not take its blocks with it.
+            assertEquals(listOf("s1"), dao.schedules().map { it.id })
+            assertEquals(listOf("b1" to "s1"), dao.scheduleBlocks().map { it.id to it.scheduleId })
+            assertEquals(10, dao.levels().size)
+            assertEquals(listOf(true, true, false), dao.levels().take(3).map { it.isUnlocked })
+            assertEquals(11, dao.categories().size)
+            assertEquals(0, dao.runningActivities())
+            // The migrated database takes new records like any other.
+            val today = TodayRepository(app, TimeProvider(Clock.systemUTC()) { zone })
+            assertTrue(today.add(LocalDate.of(2026, 11, 8), "Added after the update") is AddResult.Added)
+        }
+        app.close()
+
+        // "Restart": everything is still there.
+        app = openAsTheAppDoes()
+        runBlocking {
+            assertEquals(listOf("First", "Second", "Added after the update"), app.backupDao().priorities().map { it.title })
+            assertEquals(1, app.backupDao().timeEntries().size)
+        }
+        app.close()
     }
 
     private fun SQLiteConnection.rows(sql: String): List<List<String?>> = prepare(sql).use { statement ->

@@ -3,6 +3,7 @@ package com.mauforge.paintlife.quiet
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mauforge.paintlife.core.backup.DataReplaced
 import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.time.DayClock
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -43,6 +45,7 @@ class QuietViewModel @Inject constructor(
     repository: QuietRepository,
     private val preferences: UserPreferencesRepository,
     dayClock: DayClock,
+    replaced: DataReplaced,
 ) : ViewModel() {
 
     private data class History(
@@ -132,6 +135,13 @@ class QuietViewModel @Inject constructor(
         // Coming back to the screen after the phone slept: catch up on a target or pause limit
         // that passed while the CPU was asleep.
         viewModelScope.launch { controller.checkDeadlines() }
+        // A backup was imported: a session cancelled before it must not be put back afterwards.
+        viewModelScope.launch {
+            replaced.count.drop(1).collect {
+                cancelled = null
+                local.update { it.copy(undo = null) }
+            }
+        }
     }
 
     fun start() = whileNotBusy {

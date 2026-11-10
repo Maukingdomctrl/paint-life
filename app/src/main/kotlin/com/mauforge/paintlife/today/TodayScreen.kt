@@ -46,7 +46,6 @@ fun TodayScreen(
                 onAddPriority = viewModel::openNewPriority,
                 onReviewCarryOver = viewModel::openCarryOver,
                 onDismissCarryOver = viewModel::dismissCarryOver,
-                // Only actions whose feature is built are offered (see TodayViewModel).
                 onQuickAction = { action ->
                     when (action) {
                         QuickAction.StartExercise -> onStartExercise()

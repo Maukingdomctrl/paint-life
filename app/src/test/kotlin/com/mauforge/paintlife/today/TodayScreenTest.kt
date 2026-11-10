@@ -1,5 +1,6 @@
 package com.mauforge.paintlife.today
 
+import com.mauforge.paintlife.core.backup.DataReplaced
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.SemanticsMatcher
@@ -88,6 +89,7 @@ class TodayScreenTest {
             testPreferences(ApplicationProvider.getApplicationContext()),
             time.provider,
             time.dayClock,
+            DataReplaced(),
         )
         composeRule.setContent { PaintLifeTheme { TodayScreen(onStartExercise = { exerciseOpened++ }, onOpenQuiet = { quietOpened++ }, onOpenMyTime = { myTimeOpened++ }, viewModel = viewModel) } }
     }
@@ -258,7 +260,7 @@ class TodayScreenTest {
         listOf("swatch_exercise", "swatch_quiet", "swatch_time").forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
-        assertEquals(0, composeRule.onAllNodes(hasText(string(R.string.today_not_tracked)), useUnmergedTree = true).fetchSemanticsNodes().size)
+        assertEquals(0, composeRule.onAllNodes(hasText("Not tracked yet"), useUnmergedTree = true).fetchSemanticsNodes().size)
         val exerciseAction = hasText(string(R.string.action_start_exercise)) and hasClickAction()
         val quietAction = hasText(string(R.string.action_quiet_time)) and hasClickAction()
         val logAction = hasText(string(R.string.action_log_time)) and hasClickAction()

@@ -1,5 +1,11 @@
 package com.mauforge.paintlife.debug
 
+import com.mauforge.paintlife.core.backup.BackupCard
+import com.mauforge.paintlife.core.backup.BackupMessage
+import com.mauforge.paintlife.core.backup.BackupProblem
+import com.mauforge.paintlife.core.backup.BackupSummary
+import com.mauforge.paintlife.core.backup.BackupUiState
+import com.mauforge.paintlife.core.backup.InProgress
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -135,8 +141,8 @@ private fun log(id: String, title: String, state: LogActivityUiState) = GalleryE
     LogActivityContent(state, {}, {}, {}, {}, {}, {}, {})
 }
 
-private fun progress(id: String, title: String, state: ProgressUiState) = GalleryEntry(id, "Progress", title) {
-    ProgressContent(state, onPeriodChange = {})
+private fun progress(id: String, title: String, state: ProgressUiState, backup: BackupUiState = BackupUiState()) = GalleryEntry(id, "Progress", title) {
+    ProgressContent(state, onPeriodChange = {}, footer = { BackupCard(backup, {}, {}) })
 }
 
 /** Every sample in the gallery, in review order. Also used by the layout tests. */
@@ -148,7 +154,7 @@ val galleryEntries: List<GalleryEntry> = listOf(
     today("today_partial", "Partly painted", TodaySamples.partlyPainted),
     today("today_two", "Two priorities", TodaySamples.twoPriorities),
     today("today_full", "Fully painted evening", TodaySamples.fullyPainted),
-    today("today_not_tracked", "Iteration 3: not tracked yet, carry-over offer", TodaySamples.notTrackedYet),
+    today("today_carry_over", "Carry-over offer", TodaySamples.carryOverOffer),
     exercise("exercise_first", "First day", ExerciseSamples.firstDay),
     exercise("exercise_midway", "Two cats beaten", ExerciseSamples.midway),
     exercise("exercise_restored", "Session restored after closing", ExerciseSamples.restoredSession),
@@ -211,6 +217,9 @@ val galleryEntries: List<GalleryEntry> = listOf(
     progress("progress_week_observing", "Last 7 days, first week", ProgressSamples.lastSevenDaysObserving),
     progress("progress_month", "This month", ProgressSamples.thisMonth),
     progress("progress_last_month", "Last month", ProgressSamples.lastMonth),
+    progress("progress_backup_saved", "Your data: backup saved", ProgressSamples.todayEmpty, BackupUiState(message = BackupMessage.Exported(BackupSummary(42, 18, 30, 410, 2)))),
+    progress("progress_backup_refused", "Your data: import refused", ProgressSamples.todayEmpty, BackupUiState(message = BackupMessage.ImportFailed(BackupProblem.Sessions))),
+    progress("progress_backup_blocked", "Your data: import waits", ProgressSamples.todayEmpty, BackupUiState(message = BackupMessage.Blocked(InProgress.entries.toSet()))),
 )
 
 @Composable

@@ -145,8 +145,8 @@ object TodaySamples {
         quickActions = AllQuickActions,
     )
 
-    /** What the real screen shows in Iteration 3: priorities only, other areas not tracked yet. */
-    val notTrackedYet = TodayUiState(
+    /** A new day with the offer to bring over yesterday's unfinished priorities. */
+    val carryOverOffer = TodayUiState(
         date = SampleDay,
         dayPart = DayPart.Morning,
         priorities = listOf(PriorityItem("p4", "Water the plants", done = false)),

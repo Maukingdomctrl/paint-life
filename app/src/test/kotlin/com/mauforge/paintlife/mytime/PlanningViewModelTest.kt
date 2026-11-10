@@ -79,7 +79,6 @@ class PlanningViewModelTest {
     private fun insights(): InsightsViewModel = InsightsViewModel(
         repository,
         testPreferences(ApplicationProvider.getApplicationContext()),
-        time.provider,
         time.dayClock,
     ).also { collect(it, it.state) }
 

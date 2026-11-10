@@ -77,6 +77,7 @@ class PlanningRepositoryTest {
         assertEquals(emptyList<RecentActivityRow>(), blocking { entries.observeRecent().first() })
         assertNull(blocking { entries.lastActualEnd(at(day, 23)) })
         // The layers are independent: an actual entry at the same time saves without overlap.
+        time.setLocal(day.atTime(10, 0))
         assertTrue(save(TimeEntryKind.ACTUAL, "learning", at(day, 9), at(day, 10)) is SaveResult.Saved)
     }
 

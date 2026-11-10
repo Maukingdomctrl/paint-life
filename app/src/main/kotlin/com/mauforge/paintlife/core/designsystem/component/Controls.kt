@@ -53,7 +53,7 @@ fun <T> SegmentedPicker(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = spacing.minTouchTarget - spacing.sm)
+                    .heightIn(min = spacing.minTouchTarget)
                     .clip(PaintLifeTheme.shapes.pill)
                     .background(if (isSelected) colors.raised else Color.Transparent)
                     .then(if (isSelected) Modifier.border(1.dp, colors.border, PaintLifeTheme.shapes.pill) else Modifier)

@@ -1,5 +1,7 @@
 package com.mauforge.paintlife.progress
 
+import com.mauforge.paintlife.core.backup.BackupCard
+import com.mauforge.paintlife.core.backup.BackupUiState
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.SemanticsMatcher
@@ -60,7 +62,7 @@ class ProgressScreenTest {
         val viewModel = ProgressViewModel(
             exercise, QuietRepository(db, time.provider), TimeRepository(db, time.provider), testPreferences(context), time.provider, time.dayClock,
         )
-        composeRule.setContent { PaintLifeTheme { ProgressScreen(viewModel = viewModel) } }
+        composeRule.setContent { PaintLifeTheme { ProgressScreen(viewModel = viewModel, backup = { BackupCard(BackupUiState(), {}, {}) }) } }
         waitFor(hasTestTag("progress_content"))
     }
 

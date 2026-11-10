@@ -162,7 +162,28 @@ class TimeRepositoryTest {
     }
 
     @Test
+    fun actualTimeThatHasNotHappenedYetIsRefusedButCanBePlanned() {
+        // It is 18:00. Later today and tomorrow have not happened yet.
+        assertEquals(SaveResult.Future, save(at(day, 17), at(day, 19)))
+        assertEquals(SaveResult.Future, save(at(day, 23), at(day.plusDays(1), 7), "sleep"))
+        assertEquals(SaveResult.Future, save(at(day.plusDays(1), 9), at(day.plusDays(1), 10)))
+        assertEquals(emptyList<Triple<String, String, String>>(), stored())
+        // Up to now is fine, and "now" follows the pickers' 5-minute grid (18:02 rounds to 18:00, 18:03 to 18:05).
+        assertTrue(save(at(day, 17), at(day, 18)) is SaveResult.Saved)
+        time.clock.instant = at(day, 18, 3)
+        assertTrue(save(at(day, 18), at(day, 18, 5)) is SaveResult.Saved)
+        assertEquals(SaveResult.Future, save(at(day, 18, 5), at(day, 18, 10)))
+        // The same stretch can be planned, and an existing entry cannot be stretched past now.
+        val plan = blocking { repository.save(EntryDraft(null, TimeEntryKind.PLANNED, "work", null, at(day, 19), at(day, 21)), Resolution.None) }
+        assertTrue(plan is SaveResult.Saved)
+        val first = blocking { repository.observeDayEntries(day).first() }.first().entry
+        assertEquals(SaveResult.Future, blocking { repository.save(draft(first.startAt, at(day, 20), id = first.id), Resolution.None) })
+    }
+
+    @Test
     fun anEntryCrossingMidnightShowsOnBothDaysAndTotalsSplit() {
+        // Logged the next morning: actual time is recorded once it has happened.
+        time.setLocal(day.plusDays(1).atTime(8, 0))
         saved(at(day, 23), at(day.plusDays(1), 7), "sleep")
         val first = blocking { repository.observeDayEntries(day).first() }
         val second = blocking { repository.observeDayEntries(day.plusDays(1)).first() }

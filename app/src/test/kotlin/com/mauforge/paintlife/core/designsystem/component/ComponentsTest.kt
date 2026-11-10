@@ -119,7 +119,9 @@ class ComponentsTest {
         composeRule.setContent {
             PaintLifeTheme { SegmentedPicker(listOf("Today", "7 days"), selected, { selected = it }, label = { it }) }
         }
-        composeRule.onNodeWithText("7 days").performClick()
+        // Each option is a full-size touch target of its own.
+        composeRule.onNodeWithText("Today").assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithText("7 days").assertHeightIsAtLeast(48.dp).performClick()
         assertEquals("7 days", selected)
     }
 }

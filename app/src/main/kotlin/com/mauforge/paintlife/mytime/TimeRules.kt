@@ -70,6 +70,22 @@ object TimeRules {
         return Instant.ofEpochSecond(minutes * 60)
     }
 
+    /**
+     * The latest moment an actual entry may end: now on the pickers' 5-minute grid, and never
+     * earlier than this minute (a running activity stops to the minute). Time that has not
+     * happened yet can only be planned.
+     */
+    fun latestActualEnd(now: Instant): Instant = maxOf(roundToStep(now), toMinute(now))
+
+    /**
+     * Last night's [sleep] cut off at [now]: it cannot end after the moment it is logged. Null
+     * when it would not have started yet.
+     */
+    fun sleepSoFar(sleep: Pair<Instant, Instant>, now: Instant): Pair<Instant, Instant>? {
+        val end = minOf(sleep.second, latestActualEnd(now))
+        return (sleep.first to end).takeIf { isValidSpan(sleep.first, end) }
+    }
+
     fun isValidSpan(start: Instant, end: Instant): Boolean {
         val length = Duration.between(start, end)
         return length >= Duration.ofMinutes(1) && length <= MAX_DURATION

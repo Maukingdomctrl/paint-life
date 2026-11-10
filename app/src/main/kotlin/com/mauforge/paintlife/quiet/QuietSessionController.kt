@@ -49,7 +49,8 @@ data class CancelledSession(val session: QuietSessionEntity)
  *   and screen-off or background time is counted exactly.
  * - While running, the timer is checkpointed every [CHECKPOINT_INTERVAL_MS] and when the app goes
  *   to the background, and a watcher completes the session the moment it reaches its target.
- * - A session paused for [QuietRules.PAUSE_LIMIT_MILLIS] is saved as ended early.
+ * - A session paused for [QuietRules.PAUSE_LIMIT_MILLIS] is saved as ended early (or removed, if it
+ *   had less than a second of quiet, exactly as Finish would).
  * - Creating the controller is "the app process started": any session still open was left by a
  *   process that died, and is saved as incomplete ([QuietRepository.recoverOpenSessions]).
  */
@@ -209,7 +210,12 @@ class QuietSessionController @Inject constructor(
                 if (!live.isPaused && activeMillis(live) >= live.session.targetDurationMillis) {
                     completeLocked(live, now, boot)
                 } else if (pausedTooLong(live, now)) {
-                    repository.endEarly(live.session.id, live.session.timer)
+                    // As with Finish: under a second of quiet leaves nothing behind.
+                    if (live.session.timer.activeDurationMillis < MIN_SAVED_MILLIS) {
+                        repository.discard(live.session.id)
+                    } else {
+                        repository.endEarly(live.session.id, live.session.timer)
+                    }
                     clearIf(live.session.id)
                 }
             }

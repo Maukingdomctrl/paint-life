@@ -2,6 +2,7 @@ package com.mauforge.paintlife.mytime
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mauforge.paintlife.core.backup.DataReplaced
 import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.TimeProvider
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -41,6 +43,7 @@ class MyTimeViewModel @Inject constructor(
     private val launch: MyTimeLaunch,
     private val time: TimeProvider,
     dayClock: DayClock,
+    replaced: DataReplaced,
 ) : ViewModel() {
 
     /** The sheet being edited. Times are instants; labels are made in [zone]. */
@@ -149,6 +152,13 @@ class MyTimeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             launch.request.filterNotNull().collect { launch.take()?.let(::handle) }
+        }
+        // A backup was imported: an Undo from before it must not put old entries into the new data.
+        viewModelScope.launch {
+            replaced.count.drop(1).collect {
+                undoChange = null
+                local.update { it.copy(undo = null, editor = null, overlap = null, schedulePrompt = null) }
+            }
         }
     }
 
@@ -418,16 +428,25 @@ class MyTimeViewModel @Inject constructor(
 
     fun useActivity(activity: QuickActivity) = updateEditor { it.copy(categoryId = activity.categoryId, note = activity.note.orEmpty()) }
 
-    /** Moves the start by [minutes] (to the 5-minute grid); the end follows if they would cross. */
+    /**
+     * Moves the start by [minutes] (to the 5-minute grid); the end follows if they would cross.
+     * An actual entry stays in the past: its start stops a step before now.
+     */
     fun nudgeStart(minutes: Long) = updateEditor { editor ->
-        val start = TimeRules.roundToStep(editor.start.plus(Duration.ofMinutes(minutes)))
-        val end = if (start < editor.end) editor.end else start.plus(Duration.ofMinutes(TimeRules.STEP_MINUTES))
-        editor.copy(start = start, end = end)
+        val step = Duration.ofMinutes(TimeRules.STEP_MINUTES)
+        val latest = if (editor.kind == TimeEntryKind.ACTUAL) TimeRules.latestActualEnd(time.now()) else null
+        var start = TimeRules.roundToStep(editor.start.plus(Duration.ofMinutes(minutes)))
+        if (latest != null && start >= latest) start = TimeRules.roundToStep(latest.minus(step))
+        val end = if (start < editor.end) editor.end else start.plus(step)
+        editor.copy(start = start, end = if (latest != null) minOf(end, latest) else end)
     }
 
     /** Moves the end by [minutes] (to the 5-minute grid), never before the start. */
     fun nudgeEnd(minutes: Long) = updateEditor { editor ->
-        val end = TimeRules.roundToStep(editor.end.plus(Duration.ofMinutes(minutes)))
+        // An actual entry's end stops at now: time that has not happened yet can only be planned.
+        val latest = if (editor.kind == TimeEntryKind.ACTUAL) TimeRules.latestActualEnd(time.now()) else null
+        var end = TimeRules.roundToStep(editor.end.plus(Duration.ofMinutes(minutes)))
+        if (latest != null && end > latest) end = latest
         editor.copy(end = if (end > editor.start) end else editor.start.plus(Duration.ofMinutes(TimeRules.STEP_MINUTES)))
     }
 
@@ -462,6 +481,7 @@ class MyTimeViewModel @Inject constructor(
                     }
                     is SaveResult.Overlaps -> local.update { it.copy(overlap = result.fit) }
                     SaveResult.Invalid -> notify(MyTimeNotice.Kind.Invalid)
+                    SaveResult.Future -> notify(MyTimeNotice.Kind.Future)
                     SaveResult.Missing -> {
                         local.update { it.copy(editor = null, overlap = null) }
                         notify(MyTimeNotice.Kind.Missing)

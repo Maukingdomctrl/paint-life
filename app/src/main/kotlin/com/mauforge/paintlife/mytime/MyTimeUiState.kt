@@ -128,7 +128,7 @@ data class MyTimeUndo(val token: Long, val kind: Kind) {
 
 @Immutable
 data class MyTimeNotice(val token: Long, val kind: Kind) {
-    enum class Kind { Invalid, Missing, UndoFailed }
+    enum class Kind { Invalid, Missing, UndoFailed, Future }
 }
 
 /** The whole screen: content plus the sheets and messages over it. */

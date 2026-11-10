@@ -1,5 +1,6 @@
 package com.mauforge.paintlife.mytime
 
+import com.mauforge.paintlife.core.backup.DataReplaced
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsActions
@@ -62,7 +63,7 @@ class MyTimeScreenTest {
     }
 
     private fun show() {
-        val viewModel = MyTimeViewModel(repository, testPreferences(context), MyTimeLaunch(), time.provider, time.dayClock)
+        val viewModel = MyTimeViewModel(repository, testPreferences(context), MyTimeLaunch(), time.provider, time.dayClock, DataReplaced())
         composeRule.setContent { PaintLifeTheme { MyTimeScreen(viewModel = viewModel) } }
         waitFor(hasTestTag("my_time_content"))
     }

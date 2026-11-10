@@ -42,6 +42,9 @@ sealed interface SaveResult {
 
     /** The entry being edited no longer exists. */
     data object Missing : SaveResult
+
+    /** An actual entry that would end after now: time that has not happened yet can only be planned. */
+    data object Future : SaveResult
 }
 
 /** What starting or stopping the running activity did. */
@@ -194,6 +197,7 @@ class TimeRepository @Inject constructor(
         val start = TimeRules.toMinute(draft.start)
         val end = TimeRules.toMinute(draft.end)
         if (!TimeRules.isValidSpan(start, end) || dao.category(draft.categoryId) == null) return SaveResult.Invalid
+        if (draft.kind == TimeEntryKind.ACTUAL && end > TimeRules.latestActualEnd(time.now())) return SaveResult.Future
         val original = draft.id?.let { dao.entry(it) ?: return SaveResult.Missing }
         val neighbours = dao.overlapping(draft.kind, start, end, TimeRules.earliestStart(start)).filter { it.id != draft.id }
         if (neighbours.isNotEmpty() && resolution == Resolution.None) {
@@ -315,8 +319,9 @@ class TimeRepository @Inject constructor(
         if (length > TimeRules.LONG_RUNNING) return null
         return when (val saved = saveLocked(currentDraft(current, now), Resolution.None)) {
             is SaveResult.Saved -> Result.success(saved.entry)
-            // Its category no longer exists: nothing can be saved, so it is dropped.
-            SaveResult.Invalid, SaveResult.Missing -> {
+            // Its category no longer exists: nothing can be saved, so it is dropped. (It ends now,
+            // so it is never in the future.)
+            SaveResult.Invalid, SaveResult.Missing, SaveResult.Future -> {
                 dao.clearCurrent()
                 Result.success(null)
             }

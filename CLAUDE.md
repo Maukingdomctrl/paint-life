@@ -80,6 +80,10 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - Distraction flags are edited in a Categories sheet reachable from My Time (from day one) and from the Distractions section in Insights.
 - Suggest a schedule is plain counting: the last 28 complete days, recorded days only (at least 1 hour actual), at least 7 needed. Each day is cut into 48 half-hour wall-clock slots; a slot's category that day is the one covering at least 15 of its 30 minutes (else not recorded). A category goes into a slot only if it was picked on at least half of the group's recorded days; ties or less leave the slot open. Adjacent equal slots merge into blocks, each showing its evidence ("seen on 5 of 6 weekdays"). Weekdays and weekends split when each has at least 2 recorded days, else one pattern. Distraction categories are treated like any other time. Never reminders or prompts outside My Time.
 
+## My Time: actual time is never in the future (decided in Iteration 8)
+- An actual entry cannot end after now (now on the 5-minute grid, never earlier than the current minute). The sheet's steppers stop there, and saving anyway says "That time hasn't happened yet. Plan it instead." Planned entries are unaffected.
+- "Log last night's sleep" is offered and saved only up to now.
+
 ## Destructive actions
 - Small deletions that are easy to put back (for example, deleting one priority) happen at once and show an Undo snackbar. No confirmation dialog.
 - Bigger destructive actions (resetting counts, deleting history, replacing data on import) always ask for confirmation first.
@@ -89,6 +93,16 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - Provide JSON export/import through the system file picker (SAF), so no storage permission is needed. The JSON is versioned. Import validates the file and confirms before replacing anything.
 - Android Auto Backup is off: set `android:allowBackup="false"` and exclude everything in `data_extraction_rules.xml` (cloud backup and device transfer, API 31+) and `backup_rules.xml` (API 26–30). Data leaves the device only through a manual JSON export.
 - Request no permissions beyond `POST_NOTIFICATIONS` and the foreground-service permissions without asking me first.
+
+## Backup (decided in Iteration 8)
+- Export and import live in a "Your data" card at the bottom of Progress. There is no settings screen.
+- The file is one JSON object: `format` "paint-life-backup", `formatVersion` 1. A file with a newer `formatVersion` is refused; unknown fields are ignored. Only user records are in it: cat benchmarks and category names stay in the app, and the file carries each level's unlock state and each category's distraction flag.
+- Export leaves out open exercise and quiet sessions and a running "now doing" activity.
+- Import is blocked while an exercise session, a quiet session or a "now doing" activity is in progress. It says what to finish and changes nothing.
+- Import never writes in one step. The file is read and validated first; then a confirmation shows what is in the file and what is on the phone, with Export current data first / Replace everything / Cancel. Only Replace everything writes, in one transaction; a rejected or failed import changes nothing.
+- Validation applies the same rules the screens do (three priorities a day, no overlaps within a layer, entries of whole minutes from 1 minute to 24 hours, the eleven categories, the ten levels unlocked in order, finished sessions only).
+- Progress flags travel in the backup (first-use date, safety guidance read, victories seen, observation week finished, chosen report periods). Phone-specific flags (notification permission asked, sleep card dismissed) do not.
+- After an import, Cat League bests and unlocks are brought in line with the imported results, and Undo offers from before the import are dropped.
 
 ## Release
 - Sign release builds with my own keystore. Read its details from a gitignored `keystore.properties` file or environment variables. Never commit keystores or passwords. If neither is present, the build should fail with a clear message, not fall back to the debug key.

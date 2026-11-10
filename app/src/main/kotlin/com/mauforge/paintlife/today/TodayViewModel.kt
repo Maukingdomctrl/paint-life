@@ -6,6 +6,7 @@ import com.mauforge.paintlife.core.time.DayClock
 import com.mauforge.paintlife.core.time.DayMoment
 import com.mauforge.paintlife.exercise.ExerciseDayTotals
 import com.mauforge.paintlife.exercise.ExerciseRepository
+import com.mauforge.paintlife.core.backup.DataReplaced
 import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.time.TimeProvider
 import com.mauforge.paintlife.mytime.ActivityCategoryEntity
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -63,6 +65,7 @@ class TodayViewModel @Inject constructor(
     private val preferences: UserPreferencesRepository,
     private val clock: TimeProvider,
     dayClock: DayClock,
+    replaced: DataReplaced,
 ) : ViewModel() {
 
     private sealed interface Editor {
@@ -81,7 +84,7 @@ class TodayViewModel @Inject constructor(
         val sleepBusy: Boolean = false,
     )
 
-    /** Today's recorded time, read in the zone the day is shown in. */
+    /** Today's recorded time, read in the current zone (re-read when the zone changes, even on the same date). */
     private data class TimeData(
         val date: LocalDate,
         val zone: ZoneId,
@@ -119,7 +122,11 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    /** Re-reads "now" twice a minute for the strip and the running activity (display only). */
+    /**
+     * Twice a minute, for the strip and the running activity (display only). The value is not
+     * used: every recomputation reads the clock again, so the screen is also right straight after
+     * the clock, date or zone changes.
+     */
     private val ticks: Flow<Instant> = flow {
         while (true) {
             emit(clock.now())
@@ -128,8 +135,7 @@ class TodayViewModel @Inject constructor(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val timeData: Flow<TimeData> = moment.map { it.date }.distinctUntilChanged().flatMapLatest { date ->
-        val zone = clock.zone()
+    private val timeData: Flow<TimeData> = moment.map { it.date to it.zone }.distinctUntilChanged().flatMapLatest { (date, zone) ->
         combine(
             time.observeDayEntries(date),
             combine(time.observeCurrent(), time.observeCategories(), ::Pair),
@@ -141,8 +147,20 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    val state: StateFlow<TodayScreenState> = combine(moment, dayData, timeData, ticks, local, ::toScreenState)
+    val state: StateFlow<TodayScreenState> = combine(moment, dayData, timeData, ticks, local) { moment, data, time, _, local ->
+        toScreenState(moment, data, time, clock.now(), local)
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), TodayScreenState())
+
+    init {
+        // A backup was imported: a priority deleted before it must not be put back into the new data.
+        viewModelScope.launch {
+            replaced.count.drop(1).collect {
+                deleted = null
+                local.update { it.copy(undo = null, editor = null, carryOverPickerOpen = false) }
+            }
+        }
+    }
 
     private fun toScreenState(moment: DayMoment, data: DayData, time: TimeData, now: Instant, local: Local): TodayScreenState {
         val items = data.priorities.map { PriorityItem(it.id, it.title, it.isCompleted) }
@@ -190,14 +208,16 @@ class TodayViewModel @Inject constructor(
         val onDay = DayView.onDay(time.entries, time.date, time.zone)
         val nowMinute = DayView.minuteOfDay(now, time.date, time.zone)
         val morning = now.atZone(time.zone).toLocalTime() < TimeRules.MORNING_ENDS
+        // Offered only up to now: sleep that has not happened yet is never logged.
+        val sleep = TimeRules.sleepSoFar(time.sleep, now)
         val current = time.current
         val category = current?.let { running -> time.categories.firstOrNull { it.id == running.categoryId } }
         return copy(
             timeByCategory = DayView.categoryTotals(onDay, time.date, time.zone).map { CategoryMinutes(it.categoryName, it.colorKey, it.minutes.toInt()) },
             strip = DayView.stretches(onDay, time.date, time.zone, nowMinute).map { TodayStripBlock(it.startMinute, it.endMinute, it.colorKey) },
             dayLengthMinutes = TimelineGeometry.dayLengthMinutes(time.date, time.zone),
-            sleepCard = if (morning && !time.sleepLogged && !time.sleepDismissed) {
-                SleepCardUi(TimeRules.wallTime(time.sleep.first, time.zone).text, TimeRules.wallTime(time.sleep.second, time.zone).text)
+            sleepCard = if (morning && !time.sleepLogged && !time.sleepDismissed && sleep != null) {
+                SleepCardUi(TimeRules.wallTime(sleep.first, time.zone).text, TimeRules.wallTime(sleep.second, time.zone).text)
             } else {
                 null
             },
@@ -225,7 +245,7 @@ class TodayViewModel @Inject constructor(
                 launch.open(LogRequest.Draft(draft, result.fit))
                 openMyTime()
             }
-            SaveResult.Invalid, SaveResult.Missing -> {
+            SaveResult.Invalid, SaveResult.Missing, SaveResult.Future -> {
                 launch.open(LogRequest.Draft(draft))
                 openMyTime()
             }
@@ -249,7 +269,7 @@ class TodayViewModel @Inject constructor(
         local.update { it.copy(sleepBusy = true) }
         viewModelScope.launch {
             try {
-                val (start, end) = time.sleepPrefill(date, clock.zone())
+                val (start, end) = TimeRules.sleepSoFar(time.sleepPrefill(date, clock.zone()), clock.now()) ?: return@launch
                 block(EntryDraft(null, TimeEntryKind.ACTUAL, TimeRules.SLEEP_ID, null, start, end))
             } finally {
                 local.update { it.copy(sleepBusy = false) }

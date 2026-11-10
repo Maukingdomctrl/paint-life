@@ -1,5 +1,6 @@
 package com.mauforge.paintlife.quiet
 
+import com.mauforge.paintlife.core.backup.DataReplaced
 import android.Manifest
 import android.app.Application
 import android.content.Context
@@ -81,7 +82,7 @@ class QuietScreenTest {
     }
 
     private fun show() {
-        val viewModel = QuietViewModel(context, controller, QuietRepository(db, time.provider), preferences, time.dayClock)
+        val viewModel = QuietViewModel(context, controller, QuietRepository(db, time.provider), preferences, time.dayClock, DataReplaced())
         composeRule.setContent { PaintLifeTheme { QuietScreen(viewModel = viewModel) } }
         waitFor(hasTestTag("quiet_content"))
     }

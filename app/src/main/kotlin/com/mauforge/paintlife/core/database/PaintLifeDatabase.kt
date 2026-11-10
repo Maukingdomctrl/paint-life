@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.mauforge.paintlife.core.backup.BackupDao
 import com.mauforge.paintlife.exercise.ChallengeLevelEntity
 import com.mauforge.paintlife.exercise.ExerciseDao
 import com.mauforge.paintlife.exercise.ExerciseSessionEntity
@@ -65,6 +66,8 @@ abstract class PaintLifeDatabase : RoomDatabase() {
     abstract fun quietDao(): QuietDao
 
     abstract fun timeDao(): TimeDao
+
+    abstract fun backupDao(): BackupDao
 
     companion object {
         const val NAME = "paint_life.db"

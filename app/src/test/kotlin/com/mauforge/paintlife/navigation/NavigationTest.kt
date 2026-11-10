@@ -53,7 +53,7 @@ class NavigationTest {
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.TODAY)).assertIsSelected()
         waitForToday()
         composeRule.onNodeWithText(context.getString(R.string.today_canvas)).assertIsDisplayed()
-        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+        assertEquals(0, composeRule.onAllNodes(hasText(NOT_BUILT)).fetchSemanticsNodes().size)
     }
 
     @Test
@@ -61,7 +61,11 @@ class NavigationTest {
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.PROGRESS)).performClick()
         waitForTag("progress_content")
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.PROGRESS)).assertIsSelected()
-        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+        assertEquals(0, composeRule.onAllNodes(hasText(NOT_BUILT)).fetchSemanticsNodes().size)
+        // Below the reports: "Your data", with backup export and import.
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasTestTag("backup_card"))
+        composeRule.onNodeWithText(context.getString(R.string.backup_export)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.backup_import)).assertIsDisplayed()
     }
 
     @Test
@@ -70,7 +74,7 @@ class NavigationTest {
         waitForTag("quiet_content")
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.QUIET)).assertIsSelected()
         composeRule.onNodeWithText(context.getString(R.string.quiet_subtitle_ready)).assertIsDisplayed()
-        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+        assertEquals(0, composeRule.onAllNodes(hasText(NOT_BUILT)).fetchSemanticsNodes().size)
     }
 
     @Test
@@ -78,7 +82,7 @@ class NavigationTest {
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.MY_TIME)).performClick()
         waitForTag("my_time_content")
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.MY_TIME)).assertIsSelected()
-        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+        assertEquals(0, composeRule.onAllNodes(hasText(NOT_BUILT)).fetchSemanticsNodes().size)
     }
 
     @Test
@@ -100,7 +104,7 @@ class NavigationTest {
         composeRule.onNodeWithText(context.getString(R.string.volume_lifetime)).assertIsDisplayed()
         composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(context.getString(R.string.league_next_opponent)))
         composeRule.onNodeWithText(context.getString(R.string.league_next_opponent)).assertIsDisplayed()
-        assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.not_built_badge))).fetchSemanticsNodes().size)
+        assertEquals(0, composeRule.onAllNodes(hasText(NOT_BUILT)).fetchSemanticsNodes().size)
 
         val mia = hasText(context.getString(R.string.cat_mia_name)) and hasClickAction()
         composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(mia)
@@ -142,5 +146,10 @@ class NavigationTest {
 
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.TODAY)).assertIsSelected()
         waitForToday()
+    }
+
+    private companion object {
+        /** The badge of the old "Coming in Iteration N" screens; no screen may show it any more. */
+        const val NOT_BUILT = "Not built yet"
     }
 }

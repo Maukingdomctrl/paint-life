@@ -183,39 +183,35 @@ private fun TodayCanvas(state: TodayUiState) {
             modifier = Modifier.fillMaxWidth().padding(top = spacing.md),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            val notTracked = stringResource(R.string.today_not_tracked)
             val exercise = state.exercise
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_exercise),
                 value = when {
-                    exercise == null -> notTracked
                     exercise.sessions > 0 -> pluralStringResource(R.plurals.reps, exercise.reps, exercise.reps)
                     else -> stringResource(R.string.today_not_yet)
                 },
-                segments = paintedOrEmpty(exercise != null && exercise.sessions > 0, colors.swatchExercise),
+                segments = paintedOrEmpty(exercise.sessions > 0, colors.swatchExercise),
                 modifier = Modifier.weight(1f).testTag("swatch_exercise"),
             )
             val quiet = state.quiet
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_quiet),
                 value = when {
-                    quiet == null -> notTracked
                     quiet.completed -> stringResource(R.string.today_done)
                     quiet.fill > 0f -> stringResource(R.string.today_quiet_minutes, quiet.minutes)
                     else -> stringResource(R.string.today_not_yet)
                 },
-                segments = if (quiet != null && quiet.fill > 0f) listOf(SwatchSegment(colors.swatchQuiet, quiet.fill)) else emptyList(),
+                segments = if (quiet.fill > 0f) listOf(SwatchSegment(colors.swatchQuiet, quiet.fill)) else emptyList(),
                 modifier = Modifier.weight(1f).testTag("swatch_quiet"),
             )
             val time = state.timeByCategory
             CanvasSwatch(
                 label = stringResource(R.string.today_swatch_time),
                 value = when {
-                    time == null -> notTracked
                     state.timeLoggedMinutes > 0 -> DurationFormat.hoursMinutes(state.timeLoggedMinutes)
                     else -> stringResource(R.string.today_not_yet)
                 },
-                segments = time.orEmpty().map {
+                segments = time.map {
                     SwatchSegment(colors.category(it.colorKey), it.minutes.toFloat() / state.dayLengthMinutes)
                 },
                 modifier = Modifier.weight(1f).testTag("swatch_time"),

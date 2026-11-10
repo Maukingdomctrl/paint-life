@@ -1,10 +1,16 @@
 package com.mauforge.paintlife.today
 
+import com.mauforge.paintlife.core.backup.DataReplaced
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.core.database.PaintLifeDatabase
+import com.mauforge.paintlife.core.database.SeedCallback
+import com.mauforge.paintlife.mytime.EntryDraft
+import com.mauforge.paintlife.mytime.Resolution
+import com.mauforge.paintlife.mytime.TimeEntryKind
+import com.mauforge.paintlife.mytime.TimeRules
 import com.mauforge.paintlife.exercise.ExerciseRepository
 import com.mauforge.paintlife.quiet.QuietRepository
 import com.mauforge.paintlife.mytime.MyTimeLaunch
@@ -54,12 +60,13 @@ class TodayViewModelTest {
     private lateinit var viewModel: TodayViewModel
     private lateinit var collector: Job
     private val launch = MyTimeLaunch()
+    private val replaced = DataReplaced()
 
     @Before
     fun setUp() {
         main = newSingleThreadContext("test-main")
         Dispatchers.setMain(main)
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), PaintLifeDatabase::class.java).build()
+        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), PaintLifeDatabase::class.java).addCallback(SeedCallback).build()
         repository = TodayRepository(db, time.provider)
         viewModel = TodayViewModel(
             repository,
@@ -70,6 +77,7 @@ class TodayViewModelTest {
             testPreferences(ApplicationProvider.getApplicationContext()),
             time.provider,
             time.dayClock,
+            replaced,
         )
         // The screen collects state while visible; do the same here.
         collector = CoroutineScope(main).launch { viewModel.state.collect { } }
@@ -111,6 +119,60 @@ class TodayViewModelTest {
         // 09:00 with nothing recorded: the whole morning is one unrecorded stretch.
         assertEquals(listOf(TodayStripBlock(0, 540, null)), content.strip)
         assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime), content.quickActions)
+    }
+
+    @Test
+    fun aZoneChangeOnTheSameDateRedrawsTodaysTimeInTheNewZone() = runBlocking<Unit> {
+        // 09:00 in Kolkata, with an hour of work since 08:00.
+        val zone = ZoneId.of("Asia/Kolkata")
+        TimeRepository(db, time.provider).save(
+            EntryDraft(null, TimeEntryKind.ACTUAL, "work", null, day.atTime(8, 0).atZone(zone).toInstant(), day.atTime(9, 0).atZone(zone).toInstant()),
+            Resolution.None,
+        )
+        awaitState { it.content?.strip == listOf(TodayStripBlock(0, 480, null), TodayStripBlock(480, 540, "slate")) }
+
+        // The phone moves to Tokyo, three and a half hours ahead: still 9 November, now 12:30.
+        time.zone = ZoneId.of("Asia/Tokyo")
+        time.announceChange()
+
+        val content = awaitState { it.content?.strip?.lastOrNull()?.endMinute == 750 }.content!!
+        assertEquals(day, content.date)
+        assertEquals(listOf(TodayStripBlock(0, 690, null), TodayStripBlock(690, 750, "slate")), content.strip)
+        assertEquals(DayPart.Afternoon, content.dayPart)
+    }
+
+    @Test
+    fun theSleepCardNeverOffersSleepThatHasNotHappenedYet() = runBlocking<Unit> {
+        // Up at 06:30, before the usual 07:00: the card offers the night up to now.
+        time.setLocal(day.atTime(6, 30))
+        time.announceChange()
+        val card = awaitState { it.content?.sleepCard?.endLabel == "06:30" }.content!!.sleepCard!!
+        assertEquals(SleepCardUi("23:00", "06:30"), card)
+
+        onMain { viewModel.logSleep() }
+
+        awaitState { it.notice?.kind == TodayNotice.Kind.SleepLogged }
+        val zone = ZoneId.of("Asia/Kolkata")
+        val saved = TimeRepository(db, time.provider).observeDayEntries(day).first().single().entry
+        assertEquals("sleep", saved.categoryId)
+        assertEquals("23:00" to "06:30", TimeRules.wallTime(saved.startAt, zone).text to TimeRules.wallTime(saved.endAt, zone).text)
+    }
+
+    @Test
+    fun anImportedBackupClearsAnUndoFromBefore() = runBlocking<Unit> {
+        awaitState { it.content != null }
+        onMain { viewModel.openNewPriority() }
+        onMain { viewModel.save("From before") }
+        val id = awaitState { it.content?.priorities?.size == 1 }.content!!.priorities.single().id
+        onMain { viewModel.delete(id) }
+        val token = awaitState { it.undo != null }.undo!!.token
+
+        // Every record is replaced by an import (here: the same data). The old Undo is gone.
+        replaced.signal()
+        awaitState { it.undo == null }
+        onMain { viewModel.undoDelete(token) }
+
+        assertEquals(emptyList<PriorityEntity>(), stored(day))
     }
 
     @Test

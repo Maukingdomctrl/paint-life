@@ -107,6 +107,26 @@ class TimeRulesTest {
     // Overlaps
 
     @Test
+    fun actualTimeEndsNoLaterThanNowOnTheFiveMinuteGrid() {
+        assertEquals(at(day, 10, 0), TimeRules.latestActualEnd(at(day, 10, 0)))
+        // 10:03 rounds up to 10:05, the mark the pickers offer as "now".
+        assertEquals(at(day, 10, 5), TimeRules.latestActualEnd(at(day, 10, 3)))
+        // 10:02 rounds down to 10:00, but this minute has begun: a running activity may stop in it.
+        assertEquals(at(day, 10, 2), TimeRules.latestActualEnd(at(day, 10, 2).plusSeconds(20)))
+    }
+
+    @Test
+    fun lastNightsSleepIsOfferedOnlyUpToNow() {
+        val sleep = at(day.minusDays(1), 23) to at(day, 7)
+        // Logged after waking: the whole night.
+        assertEquals(sleep, TimeRules.sleepSoFar(sleep, at(day, 9)))
+        // Up at 06:30, before the usual 07:00: the sleep ends now, not in the future.
+        assertEquals(sleep.first to at(day, 6, 30), TimeRules.sleepSoFar(sleep, at(day, 6, 30)))
+        // Before the usual bedtime there is no night to log yet.
+        assertEquals(null, TimeRules.sleepSoFar(sleep, at(day.minusDays(1), 22)))
+    }
+
+    @Test
     fun fittingTrimsPartialNeighboursSplitsAContainingOneAndRemovesCoveredOnes() {
         val before = entry("before", at(day, 8), at(day, 10))
         val covered = entry("covered", at(day, 10, 15), at(day, 10, 45))

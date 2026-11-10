@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.time.DayClock
-import com.mauforge.paintlife.core.time.TimeProvider
 import com.mauforge.paintlife.progress.CategoryTotal
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 /** One wall-clock hour: the category that filled it most often, and the whole mix. */
@@ -82,13 +82,13 @@ data class InsightsScreenState(
 class InsightsViewModel @Inject constructor(
     private val repository: TimeRepository,
     private val preferences: UserPreferencesRepository,
-    private val time: TimeProvider,
     dayClock: DayClock,
 ) : ViewModel() {
 
     private val categoriesOpen = MutableStateFlow(false)
 
-    private val today: Flow<LocalDate> = dayClock.moments.map { it.date }.distinctUntilChanged()
+    /** Today and the current zone: a zone change alone also moves days that have no entries. */
+    private val today: Flow<Pair<LocalDate, ZoneId>> = dayClock.moments.map { it.date to it.zone }.distinctUntilChanged()
 
     private val period: Flow<InsightsPeriod> = preferences.myTimeInsightsPeriod
         .map { name -> InsightsPeriod.entries.firstOrNull { it.name == name } ?: InsightsPeriod.Week }
@@ -100,7 +100,8 @@ class InsightsViewModel @Inject constructor(
     private val categories = repository.observeCategories()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val content: Flow<InsightsUiState> = combine(today, period, observed, ::Triple).flatMapLatest { (today, period, observed) ->
+    private val content: Flow<InsightsUiState> = combine(today, period, observed, ::Triple).flatMapLatest { (day, period, observed) ->
+        val (today, zone) = day
         if (observed != null) return@flatMapLatest flowOf(InsightsUiState.Locked(observed))
         val (from, to) = period.range(today)
         val readFrom = DayView.readWindow(from.minusDays(1)).first
@@ -111,7 +112,7 @@ class InsightsViewModel @Inject constructor(
             repository.observeSchedules(),
             categories,
         ) { actual, planned, schedules, cats ->
-            val report = Insights.report(from, to, today, time.zone(), actual.map { it.entry }, planned.map { it.entry }, schedules, cats)
+            val report = Insights.report(from, to, today, zone, actual.map { it.entry }, planned.map { it.entry }, schedules, cats)
             InsightsUiState.Ready(toUi(period, report, cats))
         }.flowOn(Dispatchers.Default)
     }
