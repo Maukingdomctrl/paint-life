@@ -1,6 +1,6 @@
 # Project manifest
 
-Updated at the end of each iteration. Last update: Iteration 3 (Today screen and daily planning).
+Updated at the end of each iteration. Last update: Iteration 8b (final cat roster and art, signed release 0.1.0).
 
 ## Toolchain and versions
 
@@ -45,14 +45,13 @@ Known deviations from the official tables:
 - `gradle/wrapper/gradle-wrapper.{jar,properties}`, `gradlew`, `gradlew.bat`
 - `app/build.gradle.kts`: SDK levels, Java 17 bytecode, release signing guard, Room schema export, Robolectric JVM flags
 - `app/proguard-rules.pro`, `keystore.properties.example`
-- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2,3,4,5}.json`: generated, checked in
+- `app/schemas/com.mauforge.paintlife.core.database.PaintLifeDatabase/{1,2,3,4,5,6}.json`: generated, checked in
 
 ### Manifest and resources (`app/src/main/`)
 - `AndroidManifest.xml`: `allowBackup=false`; Quiet Time permissions (`POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `WAKE_LOCK`) and `QuietTimerService` (`specialUse` with its subtype property)
 - `res/xml/data_extraction_rules.xml` (API 31+) and `res/xml/backup_rules.xml` (API 26-30): exclude everything
 - `res/values/{strings,colors,themes}.xml`: dark window theme; all UI strings and plurals
-- `res/values/cat_art_{ana,mia,zoe,eva,luna,sara,nina,maya,aria,champion}.xml`: TEMPORARY aliases of the placeholder, replaced by `res/drawable-nodpi/cat_<key>.webp` on import
-- `res/drawable/cat_placeholder.xml`: TEMPORARY neutral cat avatar
+- `res/drawable-nodpi/cat_{aero,aria,pepper,coco,luna,simba,cloud,titan,olive,milo}.webp`: the ten cat pictures, 640×640 (art: Pooja / Maukingdom, created with ChatGPT; sources in `art/cats/`)
 - `res/drawable/ic_{check,lock,add,undo,pause,play,flag,info,chevron_left,chevron_right,close,edit,refresh,arrow_up,arrow_down}.xml`: Material icon shapes (Apache 2.0)
 - `res/font/bricolage_grotesque.ttf`, `res/font/atkinson_hyperlegible_next.ttf`: bundled variable fonts (SIL OFL 1.1, licences in `docs/licenses/`)
 - `res/drawable/ic_launcher_{foreground,monochrome}.xml`, `res/mipmap-anydpi/ic_launcher{,_round}.xml`
@@ -64,20 +63,20 @@ Known deviations from the official tables:
 - `navigation/`: `Routes` (incl. the nested Exercise graph: tab, cat detail, session, result, safety, history; the nested My Time graph: timeline, insights, schedule proposal), `TopLevelDestination`, `PaintLifeNavHost`, `PaintLifeAppShell` (adaptive navigation suite, styled; hosts the debug menu slot; opens Quiet on request)
 - `core/designsystem/theme/`: `Color` (dark palette, `CategoryPalette`), `PaintLifeColors` (extended roles, swatch rule), `Type` (fonts, `NumberStyles`), `Shape` (`ShapeTokens`), `Spacing`, `Theme` (dark only)
 - `core/designsystem/component/`: `Cards` (`PaintLifeCard`, `HeroPanel`, `Tray`), `Buttons`, `Progress` (`ProgressRing`, `MeterBar`), `Swatch` (+ week, calendar), `BigNumber`, `States` (empty/loading/error), `PaintLifeScreen` (+ `SectionHeader`), `Controls` (`SegmentedPicker`, `CategoryChip`), `DayStrip` (+ hatching), `Locale`, `NotYetBuiltState`, `Sheets` (`PaintLifeSheet`, `ConfirmDialog`, field colours), `Motion` (`rememberReducedMotion`)
-- `core/database/`: `PaintLifeDatabase` (v5), `Converters`, `Migrations` (`allMigrations`), `MigrationSql` (shared helpers), `Migration1To2`, `Migration2To3`, `Migration3To4`, `Migration4To5` (My Time for 6a and 6b), `SeedData` (+ `SeedCallback`), `SessionStatus`
+- `core/database/`: `PaintLifeDatabase` (v6), `Converters`, `Migrations` (`allMigrations`), `MigrationSql` (shared helpers), `Migration1To2`, `Migration2To3`, `Migration3To4`, `Migration4To5` (My Time for 6a and 6b), `Migration5To6` (final cat roster, keys renamed by level), `SeedData` (+ `SeedCallback`), `SessionStatus`
 - `core/datastore/UserPreferencesRepository.kt`: first-launch date, exercise safety read, victories seen, quiet notification permission asked, My Time observation complete, sleep card dismissed, insights and Progress periods
 - `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, `DayClock`, `SessionClock`, application scope
 - `core/time/`: `TimeProvider`, `DayClock` (+ `DayMoment`, `DayPart`: which day it is, across midnight, zone and DST changes), `TimerCheckpoint`, `SessionClock` (monotonic clock + boot count), `SessionTimer` (pure pause/resume/checkpoint/recovery rules), `DurationFormat`
 - `today/`: `TodayScreen` (wired: ViewModel, sheets, Undo snackbar), `TodayViewModel`, `TodayRepository` (+ `PriorityTitle`), `TodayDao`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`, `TodaySheets` (add/edit, carry-over picker)
 - `exercise/`: `ExerciseScreen` (tab, cat detail, session, result, safety and history routes), `ExerciseViewModels` (tab, cat detail, session, result, history, safety), `ExerciseSessionController` (the open session: counting, saves, checkpoints, recovery, timed finish window with Undo), `SessionCounter` (count + undo rules), `ExerciseRepository` (+ `SessionNote`, `PersonalBestKeys`; Cat League unlocks and best times), `ChallengeCompleteContent` (1,000 reps without a win), `ExerciseDao` (+ `ExerciseDayTotals`), `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState` (+ `League` mapping, result states), `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `ExerciseHistoryContent`, `ExerciseSheets` (correct count, edit session), `CatDetailContent` (+ victory)
-- `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (+ `CatArt` placeholder detection)
+- `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (no app-drawn ring: glow, check badge or greyscale + lock)
 - `quiet/`: `QuietScreen` (wired: permission asked once, Undo snackbar, notices), `QuietViewModel`, `QuietSessionController` (the open session: timing, checkpoints, 5:00 completion, 30-minute pause limit, recovery as incomplete), `QuietTimerService` (`specialUse` foreground service, wake lock only while running, 5:00 alert), `QuietNotifications` (channels, ongoing countdown, alert), `QuietRepository`, `QuietDao`, `QuietRules` (what counts as completed, minutes, swatch fill), `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent` (+ completion bloom)
 - `mytime/`: `MyTimeScreen` (wired: log sheet for actual and planned, overlap choice, Undo, schedule-block prompt, categories sheet), `MyTimeViewModel` (layers, planning up to 7 days ahead), `TimeRepository` (save with overlap rules, delete/undo, running activity, sleep, observation, copy a schedule day, distraction flag), `TimeDao`, `TimeRules` (limits, rounding, overlap plan, midnight split, observation days, sleep prefill, repeated times), `DayView` (which zone a day is shown in, blocks, totals, strip), `MyTimeLaunch` (Today → My Time requests), `MyTimeEntities` (ActivityCategory, TimeEntry, CurrentActivity, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ now doing, log sheet with steppers, overlap), `PlannedLayer` (+ `ScheduleRules`, `ScheduleWithBlocks`: own plans vs approved schedule per day), `Insights` (pure totals, `InsightsPeriod`), `InsightsViewModel`, `InsightsContent` (+ `InsightsScreen`), `Observation` (shared observation-week flow for My Time, Insights and Progress), `ScheduleSuggester` (plain counting over observed days), `ScheduleRepository` (approve in one transaction), `ScheduleViewModel` (in-memory proposal), `ScheduleContent` (+ `ScheduleScreen`, block editor), `CategoriesContent` (+ schedule-block prompt)
 - `progress/`: `ProgressScreen` (wired), `ProgressViewModel` (remembered period, follows `DayClock`, range reads only), `ProgressRules` (pure reports reusing each screen's own rules: exercise by start day, `QuietRules.dayTotals`, `Insights.report` + `DayView.stretches`), `ProgressUiState` (`ProgressPeriod.range`, `TimeSection` locked/ready), `ProgressContent`, `Charts` (category bars, planned vs actual, daily distribution)
 
 ### Tests (`app/src/test/`)
 - `resources/robolectric.properties`: uses a plain Application in tests
-- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 through v5, data kept)
+- `core/database/`: `ConvertersTest`, `DatabaseSeedTest`, `MigrationTest` (v1 through v6, data kept; cat roster progress kept by level)
 - `core/datastore/UserPreferencesRepositoryTest`
 - `core/time/SessionTimerTest` (pauses excluded, checkpoints, reboot), `core/time/TimeProviderTest`, `core/time/DurationFormatTest`, `core/time/DayClockTest` (midnight, noon, zone change, DST, missed broadcast)
 - `today/TodayRepositoryTest`: max 3 (also concurrent), order, delete/restore, move, carry-over, zones, restart
@@ -98,7 +97,7 @@ Known deviations from the official tables:
 - `exercise/ChallengeResultTest`: victory vs completion, replay wins, each victory offered once
 - `exercise/VictoryScreenTest`: Compose tests for the victory and completion screens
 - `exercise/ExerciseSessionScreenTest`, `exercise/ExerciseHistoryScreenTest`: Compose UI end to end (step-ups and timed challenges)
-- `exercise/cats/CatRosterTest`: roster vs seed data, names, placeholder slots
+- `exercise/cats/CatRosterTest`: roster vs seed data, names, every picture a bundled WebP
 - `mytime/TimelineGeometryTest`: midnight split, DST 23/25-hour days, gaps
 - `mytime/TimeRulesTest`: entries crossing midnight (spec §7), own-zone splits, DST nights and repeated times, limits, rounding, overlap plans, observation days, sleep prefill
 - `mytime/DayViewTest`: clipping, totals, the day so far, which zone a day is shown in
@@ -133,3 +132,15 @@ Known deviations from the official tables:
 
 ### Docs
 - `docs/licenses/OFL-BricolageGrotesque.txt`, `docs/licenses/OFL-AtkinsonHyperlegibleNext.txt`
+- `docs/screenshots/01_today.png` … `07_progress.png`: release build on an emulator, invented demo data
+- `docs/demo/make_demo.py`, `docs/demo/paint-life-demo.json`: writes the invented backup used for the screenshots (loaded through Import backup)
+
+### Not packaged
+- `art/cats/01_aero.png` … `10_milo.png`: source pictures for the cat WebPs
+- `keystore.properties` (gitignored) and the keystore itself (outside the repository): release signing
+
+## Release
+
+- Version 0.1.0 (versionCode 1), `com.mauforge.paintlife`, minSdk 26, targetSdk 37.
+- `./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk`, signed with the owner's key (APK Signature Scheme v2). The build fails without signing details; it never uses the debug key.
+- Permissions in the release APK: `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `WAKE_LOCK` (plus AndroidX's own non-exported receiver permission).

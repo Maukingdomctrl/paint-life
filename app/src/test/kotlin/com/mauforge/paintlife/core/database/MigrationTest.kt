@@ -85,8 +85,50 @@ class MigrationTest {
     }
 
     @Test
+    fun version5MigratesToTheExportedVersion6Schema() {
+        helper.createDatabase(5).close()
+        helper.runMigrationsAndValidate(6, migrations).close()
+    }
+
+    @Test
+    fun version1MigratesAllTheWayToVersion6() {
+        helper.createDatabase(1).close()
+        helper.runMigrationsAndValidate(6, migrations).close()
+    }
+
+    @Test
+    fun theNewRosterKeepsUnlockProgressByLevel() {
+        val oldKeys = listOf("ana", "mia", "zoe", "eva", "luna", "sara", "nina", "maya", "aria", "champion")
+        helper.createDatabase(5).use { db ->
+            oldKeys.forEachIndexed { index, key ->
+                val level = index + 1
+                val unlocked = if (level <= 3) 1 else 0
+                val unlockedAt = if (level in 2..3) "${level * 1000}, 'Asia/Tokyo'" else "NULL, NULL"
+                val beatenAt = if (level <= 2) "${level * 1000 + 1000}, 'Asia/Tokyo'" else "NULL, NULL"
+                db.execSQL(
+                    "INSERT INTO challenge_level (level, catKey, benchmarkMillis, isUnlocked, unlockedAt, unlockedZoneId, beatenAt, beatenZoneId) " +
+                        "VALUES ($level, '$key', ${(31 - level) * 60_000}, $unlocked, $unlockedAt, $beatenAt)",
+                )
+            }
+        }
+
+        helper.runMigrationsAndValidate(6, migrations).use { db ->
+            val rows = db.rows(
+                "SELECT level, catKey, benchmarkMillis, isUnlocked, unlockedAt, unlockedZoneId, beatenAt, beatenZoneId " +
+                    "FROM challenge_level ORDER BY level",
+            )
+            assertEquals(SeedData.levels.map { it.catKey }, rows.map { it[1] })
+            assertEquals((30 downTo 21).map { (it * 60_000).toString() }, rows.map { it[2] })
+            assertEquals(listOf("1", "aero", "1800000", "1", null, null, "2000", "Asia/Tokyo"), rows[0])
+            assertEquals(listOf("2", "aria", "1740000", "1", "2000", "Asia/Tokyo", "3000", "Asia/Tokyo"), rows[1])
+            assertEquals(listOf("3", "pepper", "1680000", "1", "3000", "Asia/Tokyo", null, null), rows[2])
+            assertEquals(listOf("9", "olive", "1320000", "0", null, null, null, null), rows[8])
+        }
+    }
+
+    @Test
     fun everyVersionAfterOneHasAMigration() {
-        val currentVersion = 5
+        val currentVersion = 6
         val covered = migrations.map { it.startVersion to it.endVersion }.toSet()
         val required = (1 until currentVersion).map { it to it + 1 }.toSet()
         assertEquals(required, covered)
@@ -255,7 +297,7 @@ class MigrationTest {
 
     /**
      * The whole way, as on a phone: a version 1 database file with records in every table is
-     * opened by the app's own Room setup (not the test helper), which migrates 1 to 5, checks the
+     * opened by the app's own Room setup (not the test helper), which migrates 1 to 6, checks the
      * result against the current schema, and then reads, writes and reopens it.
      */
     @Test

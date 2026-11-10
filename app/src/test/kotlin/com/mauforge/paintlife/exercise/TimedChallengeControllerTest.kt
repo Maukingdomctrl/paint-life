@@ -89,7 +89,7 @@ class TimedChallengeControllerTest {
         while (!condition()) delay(10)
     }
 
-    /** Starts a challenge against Ana and brings the count to [reps] without finishing. */
+    /** Starts a challenge against Aero and brings the count to [reps] without finishing. */
     private fun startAt(reps: Int): ExerciseSessionController.Live {
         val started = blocking { controller.startTimed(1) }!!
         if (reps > 0) assertTrue(controller.correct(reps))

@@ -1,6 +1,7 @@
 package com.mauforge.paintlife.exercise.cats
 
 import android.content.Context
+import android.util.TypedValue
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mauforge.paintlife.core.database.SeedData
@@ -20,18 +21,18 @@ class CatRosterTest {
     }
 
     @Test
-    fun `names and breeds are the ten cats from the spec`() {
+    fun `names and breeds are the ten cats in level order`() {
         val expected = listOf(
-            "Ana" to "Orange tabby",
-            "Mia" to "White Persian",
-            "Zoe" to "Grey Scottish Fold",
-            "Eva" to "Black cat",
+            "Aero" to "Grey and white tabby",
+            "Aria" to "Tuxedo",
+            "Pepper" to "Silver tabby",
+            "Coco" to "Bengal",
             "Luna" to "Calico",
-            "Sara" to "Maine Coon",
-            "Nina" to "Siamese",
-            "Maya" to "Bengal",
-            "Aria" to "Tuxedo cat",
-            "Champion" to "Tortoiseshell",
+            "Simba" to "Orange longhair",
+            "Cloud" to "Ragdoll",
+            "Titan" to "Maine Coon",
+            "Olive" to "Scottish Fold",
+            "Milo" to "Siamese",
         )
         assertEquals(expected, CatRoster.cats.map { context.getString(it.nameRes) to context.getString(it.breedRes) })
     }
@@ -43,11 +44,12 @@ class CatRosterTest {
     }
 
     @Test
-    fun `art slots resolve to the temporary placeholder until photos are imported`() {
-        // When a photo is imported for a cat, its slot becomes a .webp and this test should be
-        // updated to list which cats still use the placeholder.
+    fun `every cat has its own bundled WebP picture`() {
         CatRoster.cats.forEach { cat ->
-            assertTrue("${cat.key} should still be the placeholder", CatArt.isPlaceholder(context.resources, cat.avatarRes))
+            assertEquals("cat_${cat.key}", context.resources.getResourceEntryName(cat.avatarRes))
+            val value = TypedValue()
+            context.resources.getValue(cat.avatarRes, value, true)
+            assertTrue("${cat.key} should be a .webp, was ${value.string}", value.string.toString().endsWith("cat_${cat.key}.webp"))
         }
     }
 

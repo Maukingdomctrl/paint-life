@@ -202,7 +202,7 @@ class BackupRepositoryTest {
             )
             assertEquals(2, b.finishedExerciseSessions().size)
             assertEquals(2, b.finishedQuietSessions().size)
-            // Ana was beaten, so Mia is unlocked on the new phone too.
+            // Aero was beaten, so Aria is unlocked on the new phone too.
             assertEquals(listOf(true, true, false), b.levels().take(3).map { it.isUnlocked })
             assertEquals(phone.preferences.backupFlags(), fresh.preferences.backupFlags())
             assertTrue(fresh.preferences.hasReadExerciseSafety.first())

@@ -31,16 +31,16 @@ object SeedData {
 
     /** Fictional game benchmarks for 1,000 repetitions, not medical recommendations. */
     val levels: List<LevelSeed> = listOf(
-        LevelSeed(1, "ana", 30),
-        LevelSeed(2, "mia", 29),
-        LevelSeed(3, "zoe", 28),
-        LevelSeed(4, "eva", 27),
+        LevelSeed(1, "aero", 30),
+        LevelSeed(2, "aria", 29),
+        LevelSeed(3, "pepper", 28),
+        LevelSeed(4, "coco", 27),
         LevelSeed(5, "luna", 26),
-        LevelSeed(6, "sara", 25),
-        LevelSeed(7, "nina", 24),
-        LevelSeed(8, "maya", 23),
-        LevelSeed(9, "aria", 22),
-        LevelSeed(10, "champion", 21),
+        LevelSeed(6, "simba", 25),
+        LevelSeed(7, "cloud", 24),
+        LevelSeed(8, "titan", 23),
+        LevelSeed(9, "olive", 22),
+        LevelSeed(10, "milo", 21),
     )
 
     fun seed(db: SupportSQLiteDatabase) {

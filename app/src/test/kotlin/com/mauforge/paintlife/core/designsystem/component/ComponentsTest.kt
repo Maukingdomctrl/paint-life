@@ -96,21 +96,21 @@ class ComponentsTest {
 
     @Test
     fun catAvatarStatesAreSpokenNotJustColoured() {
-        val ana = CatRoster.cats[0]
-        val mia = CatRoster.cats[1]
-        val zoe = CatRoster.cats[2]
+        val aero = CatRoster.cats[0]
+        val aria = CatRoster.cats[1]
+        val pepper = CatRoster.cats[2]
         composeRule.setContent {
             PaintLifeTheme {
                 Column {
-                    CatAvatar(ana, CatAvatarState.Beaten)
-                    CatAvatar(mia, CatAvatarState.Current)
-                    CatAvatar(zoe, CatAvatarState.Locked)
+                    CatAvatar(aero, CatAvatarState.Beaten)
+                    CatAvatar(aria, CatAvatarState.Current)
+                    CatAvatar(pepper, CatAvatarState.Locked)
                 }
             }
         }
-        composeRule.onNodeWithContentDescription("Ana, beaten").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Mia, next opponent").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Zoe, locked").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Aero, beaten").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Aria, next opponent").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Pepper, locked").assertIsDisplayed()
     }
 
     @Test

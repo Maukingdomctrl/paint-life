@@ -226,37 +226,37 @@
     <string name="victory_unlocked">%1$s is now unlocked.</string>
     <string name="victory_champion">You\'ve beaten the whole league.</string>
 
-    <!-- Cat League roster. Personality lines are drafts for the owner to edit. -->
-    <string name="cat_ana_name">Ana</string>
-    <string name="cat_ana_breed">Orange tabby</string>
-    <string name="cat_ana_personality">A friendly warm-up partner who cheers every step and naps between sets.</string>
-    <string name="cat_mia_name">Mia</string>
-    <string name="cat_mia_breed">White Persian</string>
-    <string name="cat_mia_personality">Unhurried and elegant. Never rushes, never stops.</string>
-    <string name="cat_zoe_name">Zoe</string>
-    <string name="cat_zoe_breed">Grey Scottish Fold</string>
-    <string name="cat_zoe_personality">Curious and steady. Counts every rep under her breath.</string>
-    <string name="cat_eva_name">Eva</string>
-    <string name="cat_eva_breed">Black cat</string>
-    <string name="cat_eva_personality">Quiet focus. Shows up at your side just when you need a push.</string>
+    <!-- Cat League roster, in level order. -->
+    <string name="cat_aero_name">Aero</string>
+    <string name="cat_aero_breed">Grey and white tabby</string>
+    <string name="cat_aero_personality">Warms up properly and never skips the stretch.</string>
+    <string name="cat_aria_name">Aria</string>
+    <string name="cat_aria_breed">Tuxedo</string>
+    <string name="cat_aria_personality">Dressed for the gala, trains like it\'s the finals.</string>
+    <string name="cat_pepper_name">Pepper</string>
+    <string name="cat_pepper_breed">Silver tabby</string>
+    <string name="cat_pepper_personality">Small, quick, and always asks for one more set.</string>
+    <string name="cat_coco_name">Coco</string>
+    <string name="cat_coco_breed">Bengal</string>
+    <string name="cat_coco_personality">All spring and spots; treats rest days as a rumour.</string>
     <string name="cat_luna_name">Luna</string>
     <string name="cat_luna_breed">Calico</string>
-    <string name="cat_luna_personality">Playful and bright. Turns every set into a game.</string>
-    <string name="cat_sara_name">Sara</string>
-    <string name="cat_sara_breed">Maine Coon</string>
-    <string name="cat_sara_personality">Big, calm and strong. Takes the long view.</string>
-    <string name="cat_nina_name">Nina</string>
-    <string name="cat_nina_breed">Siamese</string>
-    <string name="cat_nina_personality">A talkative coach who tells you exactly how you\'re doing.</string>
-    <string name="cat_maya_name">Maya</string>
-    <string name="cat_maya_breed">Bengal</string>
-    <string name="cat_maya_personality">All energy. Loves a fast pace and a clean finish.</string>
-    <string name="cat_aria_name">Aria</string>
-    <string name="cat_aria_breed">Tuxedo cat</string>
-    <string name="cat_aria_personality">Sharp and tidy. Places every step with care.</string>
-    <string name="cat_champion_name">Champion</string>
-    <string name="cat_champion_breed">Tortoiseshell</string>
-    <string name="cat_champion_personality">The one to beat, and generous in defeat.</string>
+    <string name="cat_luna_personality">Calm between sets, fierce during them.</string>
+    <string name="cat_simba_name">Simba</string>
+    <string name="cat_simba_breed">Orange longhair</string>
+    <string name="cat_simba_personality">Big mane, bigger lifts, loudest cheer in the gym.</string>
+    <string name="cat_cloud_name">Cloud</string>
+    <string name="cat_cloud_breed">Ragdoll</string>
+    <string name="cat_cloud_personality">Looks soft, goes heavy, naps like a professional.</string>
+    <string name="cat_titan_name">Titan</string>
+    <string name="cat_titan_breed">Maine Coon</string>
+    <string name="cat_titan_personality">Carries the whole rack and makes it look easy.</string>
+    <string name="cat_olive_name">Olive</string>
+    <string name="cat_olive_breed">Scottish Fold</string>
+    <string name="cat_olive_personality">Quiet focus, perfect form, never wastes a rep.</string>
+    <string name="cat_milo_name">Milo</string>
+    <string name="cat_milo_breed">Siamese</string>
+    <string name="cat_milo_personality">The champion. Sets the pace and has never been caught.</string>
 
     <!-- Quiet Time -->
     <string name="quiet_subtitle_ready">Five minutes, just for you.</string>

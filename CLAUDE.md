@@ -38,8 +38,10 @@ The product spec is `docs/SPEC.md`. If this file and the spec disagree, this fil
 - The timed 1,000-rep challenge is in v1. The next cat unlocks only when the user beats the current cat's benchmark, and beating means strictly faster (a tie doesn't unlock).
 - In timed mode the user can pause, but the clock keeps running. In normal sessions, paused time is left out of active duration.
 - Lifetime total reps (volume) and timed results are separate achievements. Earlier levels can be replayed. Never raise intensity automatically, and never punish missed days.
-- Cat artwork: I will provide it. Until then, use one neutral placeholder that is clearly marked as temporary and loads from a single place, so swapping in my art means replacing files only. Never load images from remote URLs.
-- Cat photos arrive as `art/cats/01_ana.png` … `10_champion.png`. On import: centre-crop square, resize to 640×640, convert to WebP, save as `app/src/main/res/drawable-nodpi/cat_<key>.webp`, and delete the matching `res/values/cat_art_<key>.xml` placeholder alias. Avatars are circular, with fixed sizes (40/56/96/160dp); locked = greyscale at 55% plus a lock badge.
+- Roster, in level order (decided in Iteration 8b; replaces the spec's cats): 1 Aero, 2 Aria, 3 Pepper, 4 Coco, 5 Luna, 6 Simba, 7 Cloud, 8 Titan, 9 Olive, 10 Milo (the champion). Benchmarks stay 30:00 … 21:00. Progress belongs to the level, not the cat's name.
+- Cat artwork is mine and bundled; there is no placeholder. Art loads from a single place (`CatRoster`), so swapping a picture means replacing its file only. Never load images from remote URLs.
+- Cat pictures arrive as `art/cats/01_aero.png` … `10_milo.png`. On import: centre-crop square, resize to 640×640, convert to WebP (quality about 85), save as `app/src/main/res/drawable-nodpi/cat_<key>.webp`.
+- Avatars are circular, with fixed sizes (40/56/96/160dp). The pictures have a gold ring baked in, so the app never draws its own coloured ring: current = soft glow, beaten = amber check badge, locked = greyscale at 55% plus a lock badge. State is never shown by colour alone.
 
 ## Quiet Time
 - The timer runs in a foreground service with an ongoing notification and an alert when it finishes. Request `POST_NOTIFICATIONS` (API 33+) at the moment it's needed, and handle a refusal gracefully.

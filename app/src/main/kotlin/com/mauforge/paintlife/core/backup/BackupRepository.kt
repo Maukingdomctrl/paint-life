@@ -178,6 +178,6 @@ class BackupRepository @Inject constructor(
 
     companion object {
         /** Written into the file for information. */
-        const val DATABASE_VERSION = 5
+        const val DATABASE_VERSION = 6
     }
 }

@@ -271,16 +271,16 @@ fun ComponentsSheet() {
 @Composable
 fun CatAvatarSheet() {
     val spacing = PaintLifeTheme.spacing
-    val ana = CatRoster.cats.first()
+    val aero = CatRoster.cats.first()
     PaintLifeScreen {
-        sheetTitle("Cat avatars", "Temporary placeholder art until the photos are imported. Initials tell the cats apart.")
+        sheetTitle("Cat avatars", "The gold ring is part of each picture. State is shown by a glow or a badge, never by a coloured ring.")
         item(key = "states") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
                 Heading("States")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.lg), verticalArrangement = Arrangement.spacedBy(spacing.md)) {
                     CatAvatarState.entries.forEach { state ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CatAvatar(ana, state, size = CatAvatarSize.Large)
+                            CatAvatar(aero, state, size = CatAvatarSize.Large)
                             Text(state.name, style = MaterialTheme.typography.labelMedium, color = PaintLifeTheme.colors.textSecondary)
                         }
                     }
@@ -291,7 +291,7 @@ fun CatAvatarSheet() {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
                 Heading("Sizes")
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.md), verticalAlignment = Alignment.Bottom) {
-                    CatAvatarSize.entries.forEach { CatAvatar(ana, CatAvatarState.Current, size = it) }
+                    CatAvatarSize.entries.forEach { CatAvatar(aero, CatAvatarState.Current, size = it) }
                 }
             }
         }

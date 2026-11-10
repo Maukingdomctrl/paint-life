@@ -44,7 +44,7 @@ class BackupMapperTest {
         assertEquals(1_200_000L, lateNight.timer.activeDurationMillis)
         assertNull(lateNight.timer.segmentStartElapsedRealtime)
         // Cat names and benchmarks come from the app, not the file.
-        assertEquals("ana" to 30 * 60_000L, contents.levels.first().let { it.catKey to it.benchmarkMillis })
+        assertEquals("aero" to 30 * 60_000L, contents.levels.first().let { it.catKey to it.benchmarkMillis })
         assertEquals(10, contents.levels.size)
         assertEquals(true, contents.distractionFlags["work"])
         assertEquals(false, contents.distractionFlags["phone_internet"])

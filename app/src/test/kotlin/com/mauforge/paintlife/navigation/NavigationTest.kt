@@ -106,12 +106,12 @@ class NavigationTest {
         composeRule.onNodeWithText(context.getString(R.string.league_next_opponent)).assertIsDisplayed()
         assertEquals(0, composeRule.onAllNodes(hasText(NOT_BUILT)).fetchSemanticsNodes().size)
 
-        val mia = hasText(context.getString(R.string.cat_mia_name)) and hasClickAction()
-        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(mia)
-        composeRule.onNode(mia).performClick()
+        val aria = hasText(context.getString(R.string.cat_aria_name)) and hasClickAction()
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(aria)
+        composeRule.onNode(aria).performClick()
         waitForTag("cat_detail")
         composeRule.onNodeWithTag(navItemTestTag(TopLevelDestination.EXERCISE)).assertIsSelected()
-        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(context.getString(R.string.cat_locked_hint, "Ana")))
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(context.getString(R.string.cat_locked_hint, "Aero")))
         assertEquals(0, composeRule.onAllNodes(hasText(context.getString(R.string.action_start_timed))).fetchSemanticsNodes().size)
     }
 

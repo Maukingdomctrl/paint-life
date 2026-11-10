@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- TEMPORARY: cat_nina points at the shared placeholder. When the photo is imported, this file is
-     deleted and res/drawable-nodpi/cat_nina.webp takes its place (same resource name, no code change). -->
-<resources>
-    <drawable name="cat_nina">@drawable/cat_placeholder</drawable>
-</resources>

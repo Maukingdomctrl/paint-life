@@ -61,7 +61,7 @@ object BackupFixtures {
         challengeLevels = levels,
         exerciseSessions = listOf(
             ExerciseSessionDto("e1", "VOLUME", "COMPLETED", null, ms("2026-11-01T01:00:00Z"), KOLKATA, ms("2026-11-01T01:20:00Z"), KOLKATA, 120, 1_100_000, "felt good", ms("2026-11-01T01:20:00Z"), KOLKATA),
-            // 29:00 against Ana's 30:00: the win recorded on level 1.
+            // 29:00 against Aero's 30:00: the win recorded on level 1.
             ExerciseSessionDto("e2", "TIMED_CHALLENGE", "COMPLETED", 1, ms("2026-11-03T02:00:00Z"), KOLKATA, win, KOLKATA, 1000, 29 * 60_000L, null, win, KOLKATA),
             // A stopped attempt, started at 23:50 on 3 November in New York (already 4 November in UTC).
             ExerciseSessionDto("e3", "TIMED_CHALLENGE", "CANCELLED", 2, ms("2026-11-04T04:50:00Z"), NEW_YORK, ms("2026-11-04T05:10:00Z"), NEW_YORK, 300, 1_200_000, null, ms("2026-11-04T05:10:00Z"), NEW_YORK),

@@ -187,16 +187,16 @@ No human competitors.
 
 ### Cat characters
 
-1. Ana — orange tabby.
-2. Mia — white Persian.
-3. Zoe — grey Scottish Fold.
-4. Eva — black cat.
+1. Aero — grey and white tabby.
+2. Aria — tuxedo.
+3. Pepper — silver tabby.
+4. Coco — Bengal.
 5. Luna — calico.
-6. Sara — Maine Coon.
-7. Nina — Siamese.
-8. Maya — Bengal.
-9. Aria — tuxedo cat.
-10. Champion — distinctive tortoiseshell cat.
+6. Simba — orange longhair.
+7. Cloud — Ragdoll.
+8. Titan — Maine Coon.
+9. Olive — Scottish Fold.
+10. Milo — Siamese, the champion.
 
 Each character needs:
 - Unique illustrated avatar.
@@ -216,16 +216,16 @@ The fictional benchmark is 1,000 repetitions.
 
 | Level | Character | Benchmark |
 |---|---|---|
-| 1 | Ana | 30 minutes |
-| 2 | Mia | 29 minutes |
-| 3 | Zoe | 28 minutes |
-| 4 | Eva | 27 minutes |
+| 1 | Aero | 30 minutes |
+| 2 | Aria | 29 minutes |
+| 3 | Pepper | 28 minutes |
+| 4 | Coco | 27 minutes |
 | 5 | Luna | 26 minutes |
-| 6 | Sara | 25 minutes |
-| 7 | Nina | 24 minutes |
-| 8 | Maya | 23 minutes |
-| 9 | Aria | 22 minutes |
-| 10 | Champion | 21 minutes |
+| 6 | Simba | 25 minutes |
+| 7 | Cloud | 24 minutes |
+| 8 | Titan | 23 minutes |
+| 9 | Olive | 22 minutes |
+| 10 | Milo | 21 minutes |
 
 These are fictional game benchmarks, not medical recommendations.
 

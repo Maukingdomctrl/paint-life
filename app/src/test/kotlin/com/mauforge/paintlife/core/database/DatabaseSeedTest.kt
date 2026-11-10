@@ -55,14 +55,14 @@ class DatabaseSeedTest {
     }
 
     @Test
-    fun levelsHaveSpecBenchmarksAndOnlyAnaStartsUnlocked() {
+    fun levelsHaveSpecBenchmarksAndOnlyAeroStartsUnlocked() {
         val expectedMinutes = (30L downTo 21L).toList()
         assertEquals(
             expectedMinutes.map { TimeUnit.MINUTES.toMillis(it).toString() },
             column("SELECT benchmarkMillis FROM challenge_level ORDER BY level"),
         )
         assertEquals(
-            listOf("ana", "mia", "zoe", "eva", "luna", "sara", "nina", "maya", "aria", "champion"),
+            listOf("aero", "aria", "pepper", "coco", "luna", "simba", "cloud", "titan", "olive", "milo"),
             column("SELECT catKey FROM challenge_level ORDER BY level"),
         )
         assertEquals(listOf("1"), column("SELECT level FROM challenge_level WHERE isUnlocked = 1"))

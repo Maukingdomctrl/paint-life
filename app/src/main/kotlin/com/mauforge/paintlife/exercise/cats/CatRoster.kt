@@ -10,9 +10,8 @@ import com.mauforge.paintlife.R
  * Display content for one Cat League opponent. Progress (unlocked, beaten, benchmark) lives in
  * the database keyed by [key]; this is the single place that maps a cat to its art and words.
  *
- * Art: [avatarRes] is `R.drawable.cat_<key>`. Until the owner's photos arrive each one is an
- * alias of the temporary placeholder (res/values/cat_art_<key>.xml). Importing a photo replaces
- * that alias file with res/drawable-nodpi/cat_<key>.webp; no code changes. See README.
+ * Art: [avatarRes] is `R.drawable.cat_<key>`, a 640×640 WebP in res/drawable-nodpi with a gold
+ * ring baked into the picture. Replacing a picture means replacing that file only. See README.
  */
 @Immutable
 data class CatProfile(
@@ -28,16 +27,16 @@ data class CatProfile(
 
 object CatRoster {
     val cats: List<CatProfile> = listOf(
-        CatProfile(1, "ana", R.string.cat_ana_name, R.string.cat_ana_breed, R.string.cat_ana_personality, R.drawable.cat_ana),
-        CatProfile(2, "mia", R.string.cat_mia_name, R.string.cat_mia_breed, R.string.cat_mia_personality, R.drawable.cat_mia),
-        CatProfile(3, "zoe", R.string.cat_zoe_name, R.string.cat_zoe_breed, R.string.cat_zoe_personality, R.drawable.cat_zoe),
-        CatProfile(4, "eva", R.string.cat_eva_name, R.string.cat_eva_breed, R.string.cat_eva_personality, R.drawable.cat_eva),
+        CatProfile(1, "aero", R.string.cat_aero_name, R.string.cat_aero_breed, R.string.cat_aero_personality, R.drawable.cat_aero),
+        CatProfile(2, "aria", R.string.cat_aria_name, R.string.cat_aria_breed, R.string.cat_aria_personality, R.drawable.cat_aria),
+        CatProfile(3, "pepper", R.string.cat_pepper_name, R.string.cat_pepper_breed, R.string.cat_pepper_personality, R.drawable.cat_pepper),
+        CatProfile(4, "coco", R.string.cat_coco_name, R.string.cat_coco_breed, R.string.cat_coco_personality, R.drawable.cat_coco),
         CatProfile(5, "luna", R.string.cat_luna_name, R.string.cat_luna_breed, R.string.cat_luna_personality, R.drawable.cat_luna),
-        CatProfile(6, "sara", R.string.cat_sara_name, R.string.cat_sara_breed, R.string.cat_sara_personality, R.drawable.cat_sara),
-        CatProfile(7, "nina", R.string.cat_nina_name, R.string.cat_nina_breed, R.string.cat_nina_personality, R.drawable.cat_nina),
-        CatProfile(8, "maya", R.string.cat_maya_name, R.string.cat_maya_breed, R.string.cat_maya_personality, R.drawable.cat_maya),
-        CatProfile(9, "aria", R.string.cat_aria_name, R.string.cat_aria_breed, R.string.cat_aria_personality, R.drawable.cat_aria),
-        CatProfile(10, "champion", R.string.cat_champion_name, R.string.cat_champion_breed, R.string.cat_champion_personality, R.drawable.cat_champion),
+        CatProfile(6, "simba", R.string.cat_simba_name, R.string.cat_simba_breed, R.string.cat_simba_personality, R.drawable.cat_simba),
+        CatProfile(7, "cloud", R.string.cat_cloud_name, R.string.cat_cloud_breed, R.string.cat_cloud_personality, R.drawable.cat_cloud),
+        CatProfile(8, "titan", R.string.cat_titan_name, R.string.cat_titan_breed, R.string.cat_titan_personality, R.drawable.cat_titan),
+        CatProfile(9, "olive", R.string.cat_olive_name, R.string.cat_olive_breed, R.string.cat_olive_personality, R.drawable.cat_olive),
+        CatProfile(10, "milo", R.string.cat_milo_name, R.string.cat_milo_breed, R.string.cat_milo_personality, R.drawable.cat_milo),
     )
 
     private val byKey = cats.associateBy { it.key }

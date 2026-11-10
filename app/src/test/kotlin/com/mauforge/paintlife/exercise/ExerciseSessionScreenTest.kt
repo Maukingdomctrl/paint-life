@@ -265,7 +265,7 @@ class ExerciseSessionScreenTest {
     fun stoppingATimedChallengeAsksFirstAndKeepsTheReps() {
         show(level = 1)
         waitForCounter()
-        composeRule.onNodeWithText(string(R.string.session_title_timed, "Ana")).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.session_title_timed, "Aero")).assertIsDisplayed()
         tapAdd(10)
         waitForReps(10)
         assertEquals(0, composeRule.onAllNodes(hasText(string(R.string.action_finish))).fetchSemanticsNodes().size)
