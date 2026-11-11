@@ -25,6 +25,8 @@ data class EntryDraft(
     val fromCurrent: Boolean = false,
     /** The zone the day is shown in (for a planned entry: whose schedule day it lands on). */
     val zone: ZoneId? = null,
+    /** Planned entries only: minutes before the start to remind; null = off. */
+    val reminderMinutes: Int? = null,
 )
 
 /** Rows as they were ([before]) and as they are now ([after]); undoing swaps them back. */
@@ -177,6 +179,21 @@ class TimeRepository @Inject constructor(
         copyScheduleDayLocked(day, zone).takeIf { it.isNotEmpty() }?.let { EntryChange(before = emptyList(), after = it) }
     }
 
+    /**
+     * A schedule block's reminder, on every day the block shows from now on. The schedule's
+     * "updated" moment moves, so a lead time that has already passed today does not fire late.
+     */
+    suspend fun setBlockReminder(blockId: String, minutes: Int?): Boolean = db.withTransaction {
+        if (!ReminderRules.isLead(minutes)) return@withTransaction false
+        val reminders = db.reminderDao()
+        val block = reminders.block(blockId) ?: return@withTransaction false
+        reminders.setBlockReminder(blockId, minutes)
+        dao.schedules().firstOrNull { it.schedule.id == block.scheduleId }?.let { (schedule, _) ->
+            dao.updateSchedule(schedule.copy(updatedAt = time.now(), updatedZoneId = time.zone()))
+        }
+        true
+    }
+
     private suspend fun copyScheduleDayLocked(day: LocalDate, zone: ZoneId): List<TimeEntryEntity> {
         val dayStart = day.atStartOfDay(zone).toInstant()
         val windowEnd = day.plusDays(2).atStartOfDay(zone).toInstant()
@@ -202,6 +219,8 @@ class TimeRepository @Inject constructor(
                 createdZoneId = currentZone,
                 updatedAt = now,
                 updatedZoneId = currentZone,
+                // The block's reminder comes along, so the day keeps reminding as before.
+                reminderMinutes = span.reminderMinutes,
             )
             dao.insert(entry)
             inserted += entry
@@ -213,6 +232,9 @@ class TimeRepository @Inject constructor(
         val start = TimeRules.toMinute(draft.start)
         val end = TimeRules.toMinute(draft.end)
         if (!TimeRules.isValidSpan(start, end) || dao.category(draft.categoryId) == null) return SaveResult.Invalid
+        // Only a plan can remind: an actual entry is in the past.
+        val reminder = draft.reminderMinutes.takeIf { draft.kind == TimeEntryKind.PLANNED }
+        if (!ReminderRules.isLead(reminder)) return SaveResult.Invalid
         if (draft.kind == TimeEntryKind.ACTUAL && end > TimeRules.latestActualEnd(time.now())) return SaveResult.Future
         val original = draft.id?.let { dao.entry(it) ?: return SaveResult.Missing }
         val neighbours = dao.overlapping(draft.kind, start, end, TimeRules.earliestStart(start)).filter { it.id != draft.id }
@@ -241,6 +263,8 @@ class TimeRepository @Inject constructor(
                         createdZoneId = zone,
                         updatedAt = now,
                         updatedZoneId = zone,
+                        // The reminder stays with the first piece, where the activity starts.
+                        reminderMinutes = null,
                     )
                     dao.update(first)
                     dao.insert(second)
@@ -267,9 +291,10 @@ class TimeRepository @Inject constructor(
                 createdZoneId = zone,
                 updatedAt = now,
                 updatedZoneId = zone,
+                reminderMinutes = reminder,
             ).also { dao.insert(it) }
         } else {
-            original.copy(categoryId = draft.categoryId, note = note, startAt = start, endAt = end, updatedAt = now, updatedZoneId = zone)
+            original.copy(categoryId = draft.categoryId, note = note, startAt = start, endAt = end, updatedAt = now, updatedZoneId = zone, reminderMinutes = reminder)
                 .also { dao.update(it) }
         }
         if (draft.fromCurrent) dao.clearCurrent()

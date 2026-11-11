@@ -21,6 +21,8 @@ data class TimelineBlock(
     val note: String? = null,
     /** A block of the approved schedule rather than a planned entry of this day's own. */
     val fromSchedule: Boolean = false,
+    /** A planned block that reminds this many minutes before it starts; null = no reminder. */
+    val reminderMinutes: Int? = null,
 )
 
 /** The running "now doing" activity. */
@@ -90,6 +92,10 @@ data class LogActivityUiState(
     val confirmingRunning: Boolean = false,
     val layersAvailable: Boolean = true,
     val saving: Boolean = false,
+    /** A planned entry's reminder, minutes before its start; null = off. */
+    val reminderMinutes: Int? = null,
+    /** The reminder's moment has already passed (it starts sooner than the lead time): nothing will be shown. */
+    val reminderTooLate: Boolean = false,
 ) {
     val canSave: Boolean get() = selectedCategoryId != null && durationMinutes in 1..MAX_MINUTES && !saving
 
@@ -147,4 +153,4 @@ data class MyTimeScreenState(
 
 /** A tapped block of the approved schedule. */
 @Immutable
-data class SchedulePromptUi(val categoryName: String, val range: String)
+data class SchedulePromptUi(val categoryName: String, val range: String, val reminderMinutes: Int? = null)

@@ -10,6 +10,7 @@ import com.mauforge.paintlife.exercise.ExerciseSessionEntity
 import com.mauforge.paintlife.exercise.PersonalBestEntity
 import com.mauforge.paintlife.mytime.ActivityCategoryEntity
 import com.mauforge.paintlife.mytime.DailyScheduleEntity
+import com.mauforge.paintlife.mytime.ReminderEntity
 import com.mauforge.paintlife.mytime.ScheduleBlockEntity
 import com.mauforge.paintlife.mytime.TimeEntryEntity
 import com.mauforge.paintlife.quiet.QuietSessionEntity
@@ -55,6 +56,10 @@ interface BackupDao {
     @Query("SELECT * FROM schedule_block ORDER BY scheduleId, startMinuteOfDay, id")
     suspend fun scheduleBlocks(): List<ScheduleBlockEntity>
 
+    /** One-off reminders only: a snoozed reminder belongs to this phone's notifications. */
+    @Query("SELECT * FROM reminder WHERE kind = 'ONE_OFF' ORDER BY fireAt, id")
+    suspend fun oneOffReminders(): List<ReminderEntity>
+
     // What is in progress (an import waits for these to be finished).
 
     @Query("SELECT COUNT(*) FROM exercise_session WHERE status IN ('RUNNING', 'PAUSED')")
@@ -84,6 +89,13 @@ interface BackupDao {
     suspend fun scheduleCount(): Int
 
     // Import: clear every record table (children before parents), then insert the file's rows.
+
+    /** Snoozed reminders go too: they belong to the data being replaced. */
+    @Query("DELETE FROM reminder")
+    suspend fun clearReminders()
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertReminders(rows: List<ReminderEntity>)
 
     @Query("DELETE FROM schedule_block")
     suspend fun clearScheduleBlocks()

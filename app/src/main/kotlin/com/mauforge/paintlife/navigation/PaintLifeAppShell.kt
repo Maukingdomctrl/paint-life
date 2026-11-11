@@ -29,6 +29,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mauforge.paintlife.core.designsystem.theme.PaintLifeTheme
 import com.mauforge.paintlife.debug.DebugMenu
+import com.mauforge.paintlife.mytime.StartDestination
+
+/** A tapped reminder asks the app to show [destination]; a new [token] is followed once. */
+data class NavRequest(val token: Int, val destination: StartDestination)
 
 /**
  * App frame: an adaptive navigation suite (bottom bar on phones, rail on wider windows) around
@@ -40,7 +44,17 @@ fun PaintLifeAppShell(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     openQuietRequest: Int = 0,
+    navRequest: NavRequest? = null,
 ) {
+    LaunchedEffect(navRequest?.token) {
+        when (navRequest?.destination) {
+            null -> Unit
+            StartDestination.Today -> navController.navigateToTopLevel(TopLevelDestination.TODAY)
+            StartDestination.Quiet -> navController.navigateToTopLevel(TopLevelDestination.QUIET)
+            StartDestination.MyTime -> navController.navigateToTopLevel(TopLevelDestination.MY_TIME)
+            StartDestination.ExerciseSession -> navController.openExerciseSession()
+        }
+    }
     // Each new request (a tap on a Quiet Time notification) switches to the Quiet tab once.
     LaunchedEffect(openQuietRequest) {
         if (openQuietRequest > 0) navController.navigateToTopLevel(TopLevelDestination.QUIET)

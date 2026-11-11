@@ -41,6 +41,8 @@ data class BackupFile(
     val categories: List<CategoryDto> = emptyList(),
     val timeEntries: List<TimeEntryDto> = emptyList(),
     val schedules: List<ScheduleDto> = emptyList(),
+    /** One-off reminders (added in app 1.2.0; absent in older files). */
+    val reminders: List<ReminderDto> = emptyList(),
 )
 
 /** Progress flags only; phone-specific ones are not backed up. */
@@ -52,6 +54,8 @@ data class FlagsDto(
     val observationComplete: Boolean = false,
     val insightsPeriod: String? = null,
     val progressPeriod: String? = null,
+    /** The bedtime reminder's minute of the day; absent or null = off (added in app 1.2.0). */
+    val bedtimeReminderMinute: Int? = null,
 )
 
 @Serializable
@@ -155,6 +159,21 @@ data class TimeEntryDto(
     val createdZoneId: String,
     val updatedAt: Long,
     val updatedZoneId: String,
+    /** A planned entry's reminder, minutes before its start; absent or null = off (added in app 1.2.0). */
+    val reminderMinutes: Int? = null,
+)
+
+/** A one-off reminder. Snoozed reminders stay on the phone. */
+@Serializable
+data class ReminderDto(
+    val id: String,
+    val title: String,
+    val fireAt: Long,
+    val zoneId: String,
+    /** What "Start now" starts: NONE, EXERCISE, QUIET or SLEEP. */
+    val action: String = "NONE",
+    val createdAt: Long,
+    val createdZoneId: String,
 )
 
 @Serializable
@@ -182,6 +201,8 @@ data class ScheduleBlockDto(
     val startMinuteOfDay: Int,
     val endMinuteOfDay: Int,
     val daysOfWeekMask: Int,
+    /** Minutes before the block starts to remind; absent or null = off (added in app 1.2.0). */
+    val reminderMinutes: Int? = null,
 )
 
 /** Why a file cannot be imported (or could not be read or written). */
@@ -229,6 +250,9 @@ enum class BackupProblem {
 
     /** A schedule block outside the day, without days, or overlapping another. */
     Schedules,
+
+    /** A reminder with a lead time, title, start action or bedtime the app could not have set. */
+    Reminders,
 }
 
 class BackupException(val problem: BackupProblem, detail: String? = null) :

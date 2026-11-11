@@ -14,6 +14,8 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isOff
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -155,10 +157,13 @@ class TodayScreenTest {
 
         priorityRow("Walk to the market").assertIsOff().performClick()
         composeRule.waitUntil(5_000) { stored().single().isCompleted }
+        // The screen follows the database a moment later, so wait for it before checking it.
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasText("Walk to the market") and isOn()).fetchSemanticsNodes().isNotEmpty() }
         priorityRow("Walk to the market").assertIsOn()
 
         priorityRow("Walk to the market").performClick()
         composeRule.waitUntil(5_000) { !stored().single().isCompleted }
+        composeRule.waitUntil(5_000) { composeRule.onAllNodes(hasText("Walk to the market") and isOff()).fetchSemanticsNodes().isNotEmpty() }
         priorityRow("Walk to the market").assertIsOff()
     }
 

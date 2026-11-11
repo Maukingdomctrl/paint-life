@@ -97,6 +97,7 @@ class BackupRepository @Inject constructor(
                 timeEntries = dao.timeEntries(),
                 schedules = dao.schedules(),
                 scheduleBlocks = dao.scheduleBlocks(),
+                reminders = dao.oneOffReminders(),
             )
         }
     }
@@ -146,6 +147,7 @@ class BackupRepository @Inject constructor(
             val busy = inProgressLocked()
             if (busy.isNotEmpty()) return@withTransaction busy
             // Children before the rows they point at.
+            dao.clearReminders()
             dao.clearScheduleBlocks()
             dao.clearSchedules()
             dao.clearTimeEntries()
@@ -165,19 +167,22 @@ class BackupRepository @Inject constructor(
             dao.insertTimeEntries(contents.timeEntries)
             dao.insertSchedules(contents.schedules)
             dao.insertScheduleBlocks(contents.scheduleBlocks)
+            // Reminders come from the file (snoozed ones were dropped above); ReminderEngine sees
+            // the change and sets the alarm again.
+            dao.insertReminders(contents.reminders)
             exercise.applyTimedResults()
             emptySet()
         }
         if (blocked.isNotEmpty()) return ReplaceResult.Blocked(blocked)
         // Preferences cannot join a database transaction. These flags only describe the records
         // (and the observation one is worked out again from the entries), so they follow.
-        preferences.restoreBackupFlags(contents.flags)
+        preferences.restoreBackupFlags(contents.flags, time.now())
         replaced.signal()
         return ReplaceResult.Replaced(contents.summary)
     }
 
     companion object {
         /** Written into the file for information. */
-        const val DATABASE_VERSION = 6
+        const val DATABASE_VERSION = 7
     }
 }

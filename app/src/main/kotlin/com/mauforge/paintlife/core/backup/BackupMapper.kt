@@ -13,6 +13,10 @@ import com.mauforge.paintlife.exercise.PersonalBestKind
 import com.mauforge.paintlife.exercise.SessionCounter
 import com.mauforge.paintlife.mytime.DailyScheduleEntity
 import com.mauforge.paintlife.mytime.InsightsPeriod
+import com.mauforge.paintlife.mytime.ReminderEntity
+import com.mauforge.paintlife.mytime.ReminderKind
+import com.mauforge.paintlife.mytime.ReminderRules
+import com.mauforge.paintlife.mytime.StartAction
 import com.mauforge.paintlife.mytime.ScheduleBlockEntity
 import com.mauforge.paintlife.mytime.ScheduleRules
 import com.mauforge.paintlife.mytime.ScheduleStatus
@@ -59,6 +63,8 @@ data class BackupContents(
     val timeEntries: List<TimeEntryEntity>,
     val schedules: List<DailyScheduleEntity>,
     val scheduleBlocks: List<ScheduleBlockEntity>,
+    /** One-off reminders. */
+    val reminders: List<ReminderEntity> = emptyList(),
 ) {
     val summary: BackupSummary
         get() = BackupSummary(priorities.size, exerciseSessions.size, quietSessions.size, timeEntries.size, schedules.size)
@@ -93,6 +99,7 @@ object BackupMapper {
                     observationComplete = it.observationComplete,
                     insightsPeriod = it.insightsPeriod,
                     progressPeriod = it.progressPeriod,
+                    bedtimeReminderMinute = it.bedtimeReminderMinute,
                 )
             },
             dailyRecords = contents.dailyRecords.map {
@@ -167,7 +174,11 @@ object BackupMapper {
                     createdZoneId = it.createdZoneId.id,
                     updatedAt = it.updatedAt.toEpochMilli(),
                     updatedZoneId = it.updatedZoneId.id,
+                    reminderMinutes = it.reminderMinutes,
                 )
+            },
+            reminders = contents.reminders.filter { it.kind == ReminderKind.ONE_OFF }.map {
+                ReminderDto(it.id, it.title.orEmpty(), it.fireAt.toEpochMilli(), it.zoneId.id, it.action.name, it.createdAt.toEpochMilli(), it.createdZoneId.id)
             },
             schedules = contents.schedules.map { s ->
                 ScheduleDto(
@@ -185,7 +196,7 @@ object BackupMapper {
                     basedOnFrom = s.basedOnFrom?.toString(),
                     basedOnTo = s.basedOnTo?.toString(),
                     blocks = blocksBySchedule[s.id].orEmpty().map {
-                        ScheduleBlockDto(it.id, it.categoryId, it.startMinuteOfDay, it.endMinuteOfDay, it.daysOfWeekMask)
+                        ScheduleBlockDto(it.id, it.categoryId, it.startMinuteOfDay, it.endMinuteOfDay, it.daysOfWeekMask, it.reminderMinutes)
                     },
                 )
             },
@@ -214,6 +225,7 @@ object BackupMapper {
             timeEntries = timeEntries(file.timeEntries),
             schedules = schedules.also { unique(it.map { s -> s.id }, "schedule") },
             scheduleBlocks = scheduleBlocks(file.schedules),
+            reminders = reminders(file.reminders),
         )
     }
 
@@ -225,6 +237,9 @@ object BackupMapper {
         // A period this app does not know is simply not remembered.
         insightsPeriod = dto.insightsPeriod?.takeIf { name -> InsightsPeriod.entries.any { it.name == name } },
         progressPeriod = dto.progressPeriod?.takeIf { name -> ProgressPeriod.entries.any { it.name == name } },
+        bedtimeReminderMinute = dto.bedtimeReminderMinute?.also {
+            if (it !in 0 until TimeRules.MINUTES_PER_DAY) fail(BackupProblem.Reminders, "bedtime $it")
+        },
     )
 
     private fun dailyRecords(rows: List<DailyRecordDto>): List<DailyRecordEntity> {
@@ -375,9 +390,14 @@ object BackupMapper {
             if (TimeRules.toMinute(start) != start || TimeRules.toMinute(end) != end || !TimeRules.isValidSpan(start, end)) {
                 fail(BackupProblem.TimeEntries, "entry ${it.id}")
             }
+            val kind = enumOf<TimeEntryKind>(it.kind)
+            // Only a plan can remind, and only at the lead times the app offers.
+            if (it.reminderMinutes != null && (kind != TimeEntryKind.PLANNED || it.reminderMinutes !in ReminderRules.LEADS)) {
+                fail(BackupProblem.Reminders, "reminder on entry ${it.id}")
+            }
             TimeEntryEntity(
                 id = it.id,
-                kind = enumOf<TimeEntryKind>(it.kind),
+                kind = kind,
                 categoryId = it.categoryId,
                 startAt = start,
                 endAt = end,
@@ -388,6 +408,7 @@ object BackupMapper {
                 createdZoneId = zone(it.createdZoneId),
                 updatedAt = instant(it.updatedAt),
                 updatedZoneId = zone(it.updatedZoneId),
+                reminderMinutes = it.reminderMinutes,
             )
         }
         // Entries of one layer never overlap; the two layers are independent.
@@ -427,12 +448,40 @@ object BackupMapper {
                 if (a.startMinuteOfDay !in minutes || a.endMinuteOfDay !in minutes || a.daysOfWeekMask !in 1..ScheduleRules.ALL_DAYS) {
                     fail(BackupProblem.Schedules, "block ${a.id}")
                 }
+                if (!ReminderRules.isLead(a.reminderMinutes)) fail(BackupProblem.Reminders, "reminder on block ${a.id}")
                 s.blocks.drop(i + 1).forEach { b ->
                     val clash = ScheduleRules.overlaps(a.startMinuteOfDay, a.endMinuteOfDay, a.daysOfWeekMask, b.startMinuteOfDay, b.endMinuteOfDay, b.daysOfWeekMask)
                     if (clash) fail(BackupProblem.Schedules, "blocks ${a.id} and ${b.id}")
                 }
             }
-            s.blocks.map { ScheduleBlockEntity(it.id, s.id, it.categoryId, it.startMinuteOfDay, it.endMinuteOfDay, it.daysOfWeekMask) }
+            s.blocks.map { ScheduleBlockEntity(it.id, s.id, it.categoryId, it.startMinuteOfDay, it.endMinuteOfDay, it.daysOfWeekMask, it.reminderMinutes) }
+        }
+    }
+
+    /** One-off reminders: a title, a whole-minute time, and something the app can start (or nothing). */
+    private fun reminders(rows: List<ReminderDto>): List<ReminderEntity> {
+        unique(rows.map { it.id }, "reminder")
+        val startable = setOf(StartAction.NONE, StartAction.EXERCISE, StartAction.QUIET, StartAction.SLEEP)
+        return rows.map {
+            val fireAt = instant(it.fireAt)
+            val action = enumOf<StartAction>(it.action)
+            if (it.title.isBlank() || it.title.length > ReminderRules.TITLE_MAX || TimeRules.toMinute(fireAt) != fireAt || action !in startable) {
+                fail(BackupProblem.Reminders, "reminder ${it.id}")
+            }
+            ReminderEntity(
+                id = it.id,
+                kind = ReminderKind.ONE_OFF,
+                title = it.title,
+                categoryId = null,
+                note = null,
+                fireAt = fireAt,
+                zoneId = zone(it.zoneId),
+                activityStartAt = null,
+                activityEndAt = null,
+                action = action,
+                createdAt = instant(it.createdAt),
+                createdZoneId = zone(it.createdZoneId),
+            )
         }
     }
 

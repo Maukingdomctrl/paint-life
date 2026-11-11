@@ -94,7 +94,7 @@ fun PaintLifeNavHost(
 }
 
 /** Today's quick action: the Exercise tab, then straight into the counter (resuming an open session). */
-private fun NavHostController.openExerciseSession() {
+internal fun NavHostController.openExerciseSession() {
     navigateToTopLevel(TopLevelDestination.EXERCISE)
     navigate(ExerciseSessionRoute()) { launchSingleTop = true }
 }

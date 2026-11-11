@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Quiet Time only (see CLAUDE.md). POST_NOTIFICATIONS is asked for when a session first starts (API 33+). -->
+    <!-- Quiet Time and reminders (see CLAUDE.md). POST_NOTIFICATIONS is asked for at the moment it is
+         first needed (API 33+): when a quiet session starts, or when a reminder is switched on. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Held only while the quiet timer runs, so the 5:00 alert is on time with the screen off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Reminders the user sets (Iteration 10). Exact timing is the user's choice in Android's
+         "Alarms & reminders" setting (off by default on Android 14+); without it reminders are
+         inexact and the app says so. Quiet Time does not use alarms. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Alarms do not survive a restart: reminders are set again when the phone has started. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Auto Backup is off: data leaves the device only through manual JSON export. -->
     <application
@@ -40,6 +47,20 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-started five-minute quiet-time (meditation) countdown. Keeps the timer and its ongoing notification running while the screen is off, and alerts when the five minutes are up. Stops when the session ends." />
         </service>
+
+        <!-- The reminder alarm, Snooze, and the system events after which alarms are set again.
+             Not exported: only the system and this app can reach it. -->
+        <receiver
+            android:name=".mytime.ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

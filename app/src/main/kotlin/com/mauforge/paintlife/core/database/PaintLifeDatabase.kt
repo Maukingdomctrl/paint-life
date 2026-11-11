@@ -14,6 +14,8 @@ import com.mauforge.paintlife.mytime.ActivityCategoryEntity
 import com.mauforge.paintlife.mytime.CurrentActivityEntity
 import com.mauforge.paintlife.mytime.TimeDao
 import com.mauforge.paintlife.mytime.DailyScheduleEntity
+import com.mauforge.paintlife.mytime.ReminderDao
+import com.mauforge.paintlife.mytime.ReminderEntity
 import com.mauforge.paintlife.mytime.ScheduleBlockEntity
 import com.mauforge.paintlife.mytime.TimeEntryEntity
 import com.mauforge.paintlife.quiet.QuietDao
@@ -38,6 +40,11 @@ import java.time.ZoneId
  *
  * Version 5 (Iteration 6): zone ids beside every time_entry and daily_schedule instant, schedule
  * activity dates, and current_activity (the running "now doing" activity).
+ *
+ * Version 6 (Iteration 8b): the final cat roster's keys; no change of shape.
+ *
+ * Version 7 (Iteration 10): reminderMinutes on time_entry and schedule_block, and the reminder
+ * table (one-off and snoozed reminders).
  */
 @Database(
     entities = [
@@ -52,8 +59,9 @@ import java.time.ZoneId
         DailyScheduleEntity::class,
         ScheduleBlockEntity::class,
         CurrentActivityEntity::class,
+        ReminderEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -66,6 +74,8 @@ abstract class PaintLifeDatabase : RoomDatabase() {
     abstract fun quietDao(): QuietDao
 
     abstract fun timeDao(): TimeDao
+
+    abstract fun reminderDao(): ReminderDao
 
     abstract fun backupDao(): BackupDao
 

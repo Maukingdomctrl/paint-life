@@ -59,6 +59,7 @@ object DayView {
             continuesAfter = span.end > TimelineGeometry.startOfDay(date.plusDays(1), zone),
             note = span.note,
             fromSchedule = span.fromSchedule,
+            reminderMinutes = span.reminderMinutes,
         )
     }
 

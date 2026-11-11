@@ -64,6 +64,8 @@ data class TimeEntryEntity(
     val createdZoneId: ZoneId,
     val updatedAt: Instant,
     val updatedZoneId: ZoneId,
+    /** Planned entries only: remind this many minutes before the start ([ReminderRules.LEADS]); null = off. */
+    val reminderMinutes: Int? = null,
 ) {
     val durationMinutes: Long get() = Duration.between(startAt, endAt).toMinutes()
 }
@@ -164,4 +166,50 @@ data class ScheduleBlockEntity(
     val startMinuteOfDay: Int,
     val endMinuteOfDay: Int,
     val daysOfWeekMask: Int,
+    /** Remind this many minutes before the block starts, on every day it shows; null = off. */
+    val reminderMinutes: Int? = null,
+)
+
+/** Stored by name; never rename without a migration. */
+enum class ReminderKind {
+    /** A reminder the user made with a title and a time. */
+    ONE_OFF,
+
+    /** A reminder the user snoozed: it is shown again at [ReminderEntity.fireAt]. */
+    SNOOZE,
+}
+
+/** What a reminder's "Start now" starts. Stored by name; never rename without a migration. */
+enum class StartAction {
+    NONE,
+    EXERCISE,
+    QUIET,
+    SLEEP,
+
+    /** "Now doing" in the reminder's category. */
+    NOW_DOING,
+}
+
+/**
+ * A one-off reminder, or a snoozed one waiting to be shown again (Iteration 10). Reminders on
+ * planned entries and schedule blocks are a field of those rows; the bedtime reminder is a
+ * preference. A row is removed once it has fired.
+ */
+@Entity(tableName = "reminder", indices = [Index(value = ["fireAt"])])
+data class ReminderEntity(
+    @PrimaryKey val id: String,
+    val kind: ReminderKind,
+    /** The user's title (one-off), or null when the reminder is about [categoryId]. */
+    val title: String?,
+    val categoryId: String?,
+    val note: String?,
+    val fireAt: Instant,
+    /** Zone the reminder was made in. */
+    val zoneId: ZoneId,
+    /** When the activity it is about starts and ends (a snoozed planned reminder), else null. */
+    val activityStartAt: Instant?,
+    val activityEndAt: Instant?,
+    val action: StartAction,
+    val createdAt: Instant,
+    val createdZoneId: ZoneId,
 )

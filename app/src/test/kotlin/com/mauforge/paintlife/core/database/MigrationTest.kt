@@ -97,6 +97,76 @@ class MigrationTest {
     }
 
     @Test
+    fun version6MigratesToTheExportedVersion7Schema() {
+        helper.createDatabase(6).close()
+        helper.runMigrationsAndValidate(7, migrations).close()
+    }
+
+    @Test
+    fun version1MigratesAllTheWayToVersion7() {
+        helper.createDatabase(1).close()
+        helper.runMigrationsAndValidate(7, migrations).close()
+    }
+
+    /** Iteration 10: reminders are opt-in, so after the update every reminder is off and nothing else moved. */
+    @Test
+    fun plansAndSchedulesSurviveVersion7WithEveryReminderOff() {
+        val entryColumns = "id, kind, categoryId, startAt, endAt, zoneId, endZoneId, note, createdAt, createdZoneId, updatedAt, updatedZoneId"
+        val scheduleColumns = "id, name, status, createdAt, createdZoneId, approvedAt, approvedZoneId, updatedAt, updatedZoneId, " +
+            "activeFrom, activeUntil, basedOnFrom, basedOnTo"
+        val blockColumns = "id, scheduleId, categoryId, startMinuteOfDay, endMinuteOfDay, daysOfWeekMask"
+        val entries = listOf(
+            listOf("night", "ACTUAL", "sleep", "1000", "29800000", "Europe/London", "Europe/London", null, "30000000", "Europe/London", "30000000", "Europe/London"),
+            listOf("plan", "PLANNED", "work", "40000000", "43600000", "Asia/Tokyo", "Asia/Tokyo", "deep work", "100", "Asia/Tokyo", "200", "Asia/Kolkata"),
+            listOf("soon", "PLANNED", "family", "50000000", "53600000", "Asia/Kolkata", "Asia/Kolkata", null, "300", "Asia/Kolkata", "300", "Asia/Kolkata"),
+        )
+        val schedules = listOf(
+            listOf("s1", "Weekdays", "APPROVED", "10", "Asia/Kolkata", "20", "Asia/Kolkata", "30", "Asia/Kolkata", "2026-11-01", null, "2026-10-01", "2026-10-28"),
+            listOf("s0", "Before", "ARCHIVED", "1", "Asia/Tokyo", "2", "Asia/Tokyo", "3", "Asia/Tokyo", "2026-09-01", "2026-10-31", null, null),
+        )
+        val blocks = listOf(
+            listOf("b1", "s1", "work", "540", "1020", "31"),
+            listOf("b2", "s1", "sleep", "1380", "420", "127"),
+            listOf("b0", "s0", "family", "1080", "1200", "96"),
+        )
+        fun values(rows: List<List<String?>>) = rows.joinToString(", ") { row -> row.joinToString(", ", "(", ")") { if (it == null) "NULL" else "'$it'" } }
+
+        helper.createDatabase(6).use { db ->
+            db.execSQL(
+                "INSERT INTO activity_category (id, name, colorKey, isDistraction, sortOrder, isBuiltIn, isArchived) VALUES " +
+                    "('sleep', 'Sleep', 'night', 0, 9, 1, 0), ('work', 'Work', 'slate', 0, 2, 1, 0), ('family', 'Family', 'rose', 0, 5, 1, 0)",
+            )
+            db.execSQL("INSERT INTO time_entry ($entryColumns) VALUES ${values(entries)}")
+            db.execSQL("INSERT INTO daily_schedule ($scheduleColumns) VALUES ${values(schedules)}")
+            db.execSQL("INSERT INTO schedule_block ($blockColumns) VALUES ${values(blocks)}")
+            db.execSQL("INSERT INTO current_activity (id, categoryId, note, startAt, zoneId) VALUES ('current', 'work', 'now', 60000000, 'Asia/Kolkata')")
+        }
+
+        helper.runMigrationsAndValidate(7, migrations).use { db ->
+            // Every row is as it was, and none of them reminds.
+            assertEquals(entries.sortedBy { it[0] }.map { it + null }, db.rows("SELECT $entryColumns, reminderMinutes FROM time_entry ORDER BY id"))
+            assertEquals(schedules.sortedBy { it[0] }, db.rows("SELECT $scheduleColumns FROM daily_schedule ORDER BY id"))
+            assertEquals(blocks.sortedBy { it[0] }.map { it + null }, db.rows("SELECT $blockColumns, reminderMinutes FROM schedule_block ORDER BY id"))
+            assertEquals(listOf(listOf("current", "work", "now", "60000000", "Asia/Kolkata")), db.rows("SELECT id, categoryId, note, startAt, zoneId FROM current_activity"))
+            // No reminder exists until the user makes one.
+            assertEquals(listOf(listOf("0")), db.rows("SELECT COUNT(*) FROM reminder"))
+            assertEquals(listOf(listOf("index_reminder_fireAt")), db.rows("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'reminder' AND name NOT LIKE 'sqlite_%'"))
+            assertEquals(emptyList<List<String?>>(), db.rows("PRAGMA foreign_key_check"))
+
+            // The new columns and table take what the app writes.
+            db.execSQL("UPDATE time_entry SET reminderMinutes = 10 WHERE id = 'plan'")
+            db.execSQL("UPDATE schedule_block SET reminderMinutes = 30 WHERE id = 'b1'")
+            db.execSQL(
+                "INSERT INTO reminder (id, kind, title, categoryId, note, fireAt, zoneId, activityStartAt, activityEndAt, action, createdAt, createdZoneId) VALUES " +
+                    "('r1', 'ONE_OFF', 'Call the bank', NULL, NULL, 70000000, 'Asia/Kolkata', NULL, NULL, 'NONE', 60000000, 'Asia/Kolkata')",
+            )
+            assertEquals(listOf(listOf("plan", "10")), db.rows("SELECT id, reminderMinutes FROM time_entry WHERE reminderMinutes IS NOT NULL"))
+            assertEquals(listOf(listOf("b1", "30")), db.rows("SELECT id, reminderMinutes FROM schedule_block WHERE reminderMinutes IS NOT NULL"))
+            assertEquals(listOf(listOf("r1", "ONE_OFF", "Call the bank", "70000000", "NONE")), db.rows("SELECT id, kind, title, fireAt, action FROM reminder"))
+        }
+    }
+
+    @Test
     fun theNewRosterKeepsUnlockProgressByLevel() {
         val oldKeys = listOf("ana", "mia", "zoe", "eva", "luna", "sara", "nina", "maya", "aria", "champion")
         helper.createDatabase(5).use { db ->
@@ -128,7 +198,7 @@ class MigrationTest {
 
     @Test
     fun everyVersionAfterOneHasAMigration() {
-        val currentVersion = 6
+        val currentVersion = 7
         val covered = migrations.map { it.startVersion to it.endVersion }.toSet()
         val required = (1 until currentVersion).map { it to it + 1 }.toSet()
         assertEquals(required, covered)
@@ -297,7 +367,7 @@ class MigrationTest {
 
     /**
      * The whole way, as on a phone: a version 1 database file with records in every table is
-     * opened by the app's own Room setup (not the test helper), which migrates 1 to 6, checks the
+     * opened by the app's own Room setup (not the test helper), which migrates 1 to 7, checks the
      * result against the current schema, and then reads, writes and reopens it.
      */
     @Test
@@ -371,6 +441,10 @@ class MigrationTest {
             assertEquals(listOf(true, true, false), dao.levels().take(3).map { it.isUnlocked })
             assertEquals(11, dao.categories().size)
             assertEquals(0, dao.runningActivities())
+            // Version 7: every reminder is off after the update.
+            assertEquals(listOf<Int?>(null), dao.timeEntries().map { it.reminderMinutes })
+            assertEquals(listOf<Int?>(null), dao.scheduleBlocks().map { it.reminderMinutes })
+            assertEquals(0, app.reminderDao().all().size)
             // The migrated database takes new records like any other.
             val today = TodayRepository(app, TimeProvider(Clock.systemUTC()) { zone })
             assertTrue(today.add(LocalDate.of(2026, 11, 8), "Added after the update") is AddResult.Added)

@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -84,10 +85,11 @@ fun MyTimeContent(
     onStartNow: (QuickActivity) -> Unit = {},
     onStopNow: () -> Unit = {},
     onOpenCategories: () -> Unit = {},
+    onOpenReminders: () -> Unit = {},
 ) {
     val spacing = PaintLifeTheme.spacing
     PaintLifeScreen(modifier = modifier.testTag("my_time_content"), verticalSpacing = spacing.lg) {
-        item(key = "header") { DayHeader(state, onPreviousDay, onNextDay) }
+        item(key = "header") { DayHeader(state, onPreviousDay, onNextDay, onOpenReminders) }
         if (state.layersAvailable) {
             item(key = "layer") {
                 SegmentedPicker(
@@ -250,7 +252,7 @@ private fun layerLabel(layer: TimeLayer): String = stringResource(
 )
 
 @Composable
-private fun DayHeader(state: MyTimeUiState, onPreviousDay: () -> Unit, onNextDay: () -> Unit) {
+private fun DayHeader(state: MyTimeUiState, onPreviousDay: () -> Unit, onNextDay: () -> Unit, onOpenReminders: () -> Unit) {
     val colors = PaintLifeTheme.colors
     val formatter = DateTimeFormatter.ofPattern("EEEE d MMMM", currentLocale())
     Column {
@@ -273,6 +275,9 @@ private fun DayHeader(state: MyTimeUiState, onPreviousDay: () -> Unit, onNextDay
                     contentDescription = stringResource(R.string.my_time_next_day),
                     tint = if (state.canGoForward) colors.text else colors.border,
                 )
+            }
+            IconButton(onClick = onOpenReminders, modifier = Modifier.testTag("open_reminders")) {
+                Icon(painterResource(R.drawable.ic_bell), contentDescription = stringResource(R.string.reminders_title), tint = colors.text)
             }
         }
     }
@@ -386,6 +391,7 @@ private fun TimelineBlockView(block: TimelineBlock, planned: Boolean, x: Dp, wid
         block.note?.let { append(", ").append(it) }
         if (block.isDistraction) append(", ").append(stringResource(R.string.category_distraction))
         if (block.fromSchedule) append(", ").append(stringResource(R.string.my_time_from_schedule))
+        block.reminderMinutes?.let { append(", ").append(pluralStringResource(R.plurals.reminder_block_description, it, it)) }
     }
     val shape = PaintLifeTheme.shapes.bar
     Row(
@@ -416,8 +422,9 @@ private fun TimelineBlockView(block: TimelineBlock, planned: Boolean, x: Dp, wid
             }
             if (height >= 40.dp) {
                 val schedule = if (block.fromSchedule) stringResource(R.string.my_time_schedule_short) else null
+                val reminder = block.reminderMinutes?.let { stringResource(R.string.reminder_block_short, it) }
                 Text(
-                    text = listOfNotNull("${block.startLabel}–${block.endLabel}", block.note, schedule).joinToString(" · "),
+                    text = listOfNotNull("${block.startLabel}–${block.endLabel}", block.note, schedule, reminder).joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
                     color = colors.textSecondary,
                     maxLines = 1,
@@ -445,6 +452,8 @@ fun LogActivityContent(
     modifier: Modifier = Modifier,
     onNoteChange: (String) -> Unit = {},
     onUseActivity: (QuickActivity) -> Unit = {},
+    onReminderChange: (Int?) -> Unit = {},
+    reminderAccess: ReminderAccess = ReminderAccess(),
 ) {
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
@@ -554,6 +563,12 @@ fun LogActivityContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.textSecondary,
             )
+        }
+        // Only a plan can remind: an actual entry has already happened.
+        if (state.layer == TimeLayer.Planned) {
+            item(key = "reminder") {
+                ReminderPicker(state.reminderMinutes, onReminderChange, reminderAccess, tooLate = state.reminderTooLate)
+            }
         }
         item(key = "actions") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {

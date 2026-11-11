@@ -221,6 +221,7 @@ private fun messageText(message: BackupMessage): String = when (message) {
                     BackupProblem.TimeEntries -> R.string.backup_reason_time_entries
                     BackupProblem.Overlap -> R.string.backup_reason_overlap
                     BackupProblem.Schedules -> R.string.backup_reason_schedules
+                    BackupProblem.Reminders -> R.string.backup_reason_reminders
                     else -> R.string.backup_reason_damaged
                 },
             ),

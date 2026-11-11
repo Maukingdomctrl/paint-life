@@ -5,6 +5,7 @@ import com.mauforge.paintlife.core.datastore.UserPreferencesRepository
 import com.mauforge.paintlife.core.di.ApplicationScope
 import com.mauforge.paintlife.core.time.TimeProvider
 import com.mauforge.paintlife.exercise.ExerciseSessionController
+import com.mauforge.paintlife.mytime.ReminderEngine
 import com.mauforge.paintlife.quiet.QuietSessionController
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -32,8 +33,12 @@ class PaintLifeApplication : Application() {
      */
     @Inject lateinit var quietSessions: QuietSessionController
 
+    /** Sets the reminder alarm again with every process start, and whenever a plan or reminder changes. */
+    @Inject lateinit var reminders: ReminderEngine
+
     override fun onCreate() {
         super.onCreate()
+        reminders.start()
         applicationScope.launch {
             userPreferences.recordFirstLaunchIfAbsent(timeProvider.today())
         }

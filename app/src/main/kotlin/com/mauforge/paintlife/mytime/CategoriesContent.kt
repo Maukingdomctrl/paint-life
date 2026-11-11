@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
@@ -88,12 +89,17 @@ fun SchedulePromptContent(
     onChangeDay: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    onReminderChange: (Int?) -> Unit = {},
+    reminderAccess: ReminderAccess = ReminderAccess(),
 ) {
     val spacing = PaintLifeTheme.spacing
     Column(modifier.testTag("schedule_prompt"), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
         Text(text = stringResource(R.string.schedule_prompt_title, state.categoryName, state.range), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
         Text(text = stringResource(R.string.schedule_prompt_body), style = MaterialTheme.typography.bodyMedium, color = PaintLifeTheme.colors.textSecondary)
         SecondaryButton(stringResource(R.string.action_change_this_day), onChangeDay, Modifier.fillMaxWidth())
-        QuietButton(stringResource(R.string.action_cancel), onCancel, Modifier.fillMaxWidth())
+        // The block's reminder: it applies on every day the schedule shows this block.
+        ReminderPicker(state.reminderMinutes, onReminderChange, reminderAccess, Modifier.padding(top = spacing.sm))
+        Text(text = stringResource(R.string.reminder_schedule_note), style = MaterialTheme.typography.bodySmall, color = PaintLifeTheme.colors.textSecondary)
+        QuietButton(stringResource(R.string.action_done), onCancel, Modifier.fillMaxWidth())
     }
 }

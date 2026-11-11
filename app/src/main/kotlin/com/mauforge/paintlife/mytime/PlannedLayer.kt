@@ -24,6 +24,8 @@ data class PlannedSpan(
     val start: Instant,
     val end: Instant,
     val scheduleDay: LocalDate? = null,
+    /** Minutes before [start] to remind; null = off. */
+    val reminderMinutes: Int? = null,
 ) {
     val fromSchedule: Boolean get() = scheduleDay != null
 }
@@ -86,7 +88,7 @@ object PlannedLayer {
             val start = midnight.plusMinutes(block.startMinuteOfDay.toLong()).atZone(zone).toInstant()
             val end = midnight.plusMinutes(block.startMinuteOfDay + length).atZone(zone).toInstant()
             if (!TimeRules.isValidSpan(start, end)) return@mapNotNull null
-            PlannedSpan(id = "$SCHEDULE_PREFIX${block.id}:$day", categoryId = block.categoryId, note = null, start = start, end = end, scheduleDay = day)
+            PlannedSpan(id = "$SCHEDULE_PREFIX${block.id}:$day", categoryId = block.categoryId, note = null, start = start, end = end, scheduleDay = day, reminderMinutes = block.reminderMinutes)
         }.sortedBy { it.start }
 
     /** True when a planned entry of its own starts on [day] in [zone]. */
@@ -108,7 +110,7 @@ object PlannedLayer {
      * blocks of [date] and of the day before (a block may cross midnight).
      */
     fun forDay(date: LocalDate, zone: ZoneId, own: List<TimeEntryEntity>, schedules: List<ScheduleWithBlocks>): List<PlannedSpan> {
-        val owned = own.map { PlannedSpan(it.id, it.categoryId, it.note, it.startAt, it.endAt) }
+        val owned = own.map { PlannedSpan(it.id, it.categoryId, it.note, it.startAt, it.endAt, reminderMinutes = it.reminderMinutes) }
         val fromSchedule = listOf(date.minusDays(1), date).flatMap { scheduleFor(it, zone, own, schedules) }
         return (owned + fromSchedule)
             .filter { TimelineGeometry.clipToDay(it.start, it.end, date, zone) != null }
@@ -116,4 +118,8 @@ object PlannedLayer {
     }
 
     const val SCHEDULE_PREFIX = "schedule:"
+
+    /** The schedule block behind a span id made by [instances], or null for a planned entry's id. */
+    fun blockIdOf(spanId: String): String? =
+        spanId.takeIf { it.startsWith(SCHEDULE_PREFIX) }?.removePrefix(SCHEDULE_PREFIX)?.substringBeforeLast(':')
 }

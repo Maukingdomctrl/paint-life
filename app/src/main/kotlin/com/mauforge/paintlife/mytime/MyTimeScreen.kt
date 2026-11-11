@@ -15,6 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -36,6 +39,8 @@ fun MyTimeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
+    val reminderAccess = rememberReminderAccess()
+    var remindersOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
         val content = state.content
@@ -55,6 +60,7 @@ fun MyTimeScreen(
                 onStartNow = viewModel::startNow,
                 onStopNow = viewModel::stopNow,
                 onOpenCategories = viewModel::openCategories,
+                onOpenReminders = { remindersOpen = true },
             )
         }
         SnackbarHost(
@@ -95,6 +101,8 @@ fun MyTimeScreen(
                     onCancel = viewModel::closeEditor,
                     onNoteChange = viewModel::setNote,
                     onUseActivity = viewModel::useActivity,
+                    onReminderChange = viewModel::setReminder,
+                    reminderAccess = reminderAccess,
                 )
             }
         }
@@ -102,7 +110,19 @@ fun MyTimeScreen(
 
     state.schedulePrompt?.let { prompt ->
         PaintLifeSheet(onDismiss = viewModel::closeSchedulePrompt) {
-            SchedulePromptContent(prompt, onChangeDay = viewModel::changeScheduleDay, onCancel = viewModel::closeSchedulePrompt)
+            SchedulePromptContent(
+                prompt,
+                onChangeDay = viewModel::changeScheduleDay,
+                onCancel = viewModel::closeSchedulePrompt,
+                onReminderChange = viewModel::setScheduleReminder,
+                reminderAccess = reminderAccess,
+            )
+        }
+    }
+
+    if (remindersOpen) {
+        PaintLifeSheet(onDismiss = { remindersOpen = false }) {
+            RemindersSheet(access = reminderAccess, onDone = { remindersOpen = false })
         }
     }
 

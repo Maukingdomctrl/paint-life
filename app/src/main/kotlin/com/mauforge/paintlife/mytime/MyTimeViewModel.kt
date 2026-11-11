@@ -61,6 +61,8 @@ class MyTimeViewModel @Inject constructor(
         val plannedOnly: Boolean = false,
         /** Started once this is saved (switching from a running activity that needed the user). */
         val then: QuickActivity? = null,
+        /** A planned entry's reminder, minutes before its start; null = off. */
+        val reminderMinutes: Int? = null,
     )
 
     private data class Local(
@@ -143,7 +145,7 @@ class MyTimeViewModel @Inject constructor(
             undo = local.undo,
             notice = local.notice,
             schedulePrompt = local.schedulePrompt?.let { (id, _) ->
-                content.planned.firstOrNull { it.id == id }?.let { SchedulePromptUi(it.categoryName, "${it.startLabel}–${it.endLabel}") }
+                content.planned.firstOrNull { it.id == id }?.let { SchedulePromptUi(it.categoryName, "${it.startLabel}–${it.endLabel}", it.reminderMinutes) }
             },
             categories = if (local.categoriesOpen) cats.map { CategoryOption(it.id, it.name, it.colorKey, it.isDistraction) } else null,
         )
@@ -213,6 +215,7 @@ class MyTimeViewModel @Inject constructor(
         val start = TimeRules.wallTime(editor.start, editor.zone)
         val end = TimeRules.wallTime(editor.end, editor.zone)
         val minutes = Duration.between(editor.start, editor.end).toMinutes()
+        val planned = editor.kind == TimeEntryKind.PLANNED
         return LogActivityUiState(
             isEditing = editor.id != null,
             layer = if (editor.kind == TimeEntryKind.PLANNED) TimeLayer.Planned else TimeLayer.Actual,
@@ -229,6 +232,8 @@ class MyTimeViewModel @Inject constructor(
             confirmingRunning = editor.confirmingRunning,
             layersAvailable = editor.id == null && !editor.fromCurrent && !editor.plannedOnly,
             saving = saving,
+            reminderMinutes = editor.reminderMinutes.takeIf { planned },
+            reminderTooLate = planned && ReminderPlanner.leadPassed(editor.start, editor.reminderMinutes, time.now()),
         )
     }
 
@@ -352,7 +357,7 @@ class MyTimeViewModel @Inject constructor(
             val entry = repository.entry(id) ?: return@launch notify(MyTimeNotice.Kind.Missing)
             local.update {
                 it.copy(
-                    editor = Editor(entry.id, entry.categoryId, entry.note.orEmpty(), entry.startAt, entry.endAt, zone, kind = entry.kind),
+                    editor = Editor(entry.id, entry.categoryId, entry.note.orEmpty(), entry.startAt, entry.endAt, zone, kind = entry.kind, reminderMinutes = entry.reminderMinutes),
                     overlap = null,
                 )
             }
@@ -369,6 +374,12 @@ class MyTimeViewModel @Inject constructor(
         viewModelScope.launch {
             repository.copyScheduleDay(day, zone)?.let { offerUndo(it, MyTimeUndo.Kind.Copied) }
         }
+    }
+
+    /** The tapped schedule block's reminder: it applies on every day the block shows. */
+    fun setScheduleReminder(minutes: Int?) {
+        val blockId = local.value.schedulePrompt?.first?.let(PlannedLayer::blockIdOf) ?: return
+        viewModelScope.launch { repository.setBlockReminder(blockId, minutes) }
     }
 
     fun closeSchedulePrompt() {
@@ -426,6 +437,9 @@ class MyTimeViewModel @Inject constructor(
 
     fun setNote(note: String) = updateEditor { it.copy(note = note.take(TimeRepository.NOTE_MAX)) }
 
+    /** A planned entry's reminder: [minutes] before its start, or off (null). */
+    fun setReminder(minutes: Int?) = updateEditor { it.copy(reminderMinutes = minutes.takeIf(ReminderRules.LEADS::contains)) }
+
     fun useActivity(activity: QuickActivity) = updateEditor { it.copy(categoryId = activity.categoryId, note = activity.note.orEmpty()) }
 
     /**
@@ -472,7 +486,7 @@ class MyTimeViewModel @Inject constructor(
         local.update { it.copy(saving = true) }
         viewModelScope.launch {
             try {
-                val draft = EntryDraft(editor.id, editor.kind, categoryId, editor.note, editor.start, editor.end, editor.fromCurrent, zone = editor.zone)
+                val draft = EntryDraft(editor.id, editor.kind, categoryId, editor.note, editor.start, editor.end, editor.fromCurrent, zone = editor.zone, reminderMinutes = editor.reminderMinutes)
                 when (val result = repository.save(draft, resolution)) {
                     is SaveResult.Saved -> {
                         local.update { it.copy(editor = null, overlap = null) }
