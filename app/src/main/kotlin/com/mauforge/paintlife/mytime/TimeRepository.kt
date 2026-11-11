@@ -59,6 +59,20 @@ sealed interface RunResult {
     data class Overlaps(val draft: EntryDraft, val fit: List<OverlapChange>) : RunResult
 }
 
+/** What a Sleep or Wake up tap changed: the running activity [before] and [after] it, and the entry it [saved]. */
+data class SleepTap(val before: CurrentActivityEntity?, val after: CurrentActivityEntity?, val saved: TimeEntryEntity?)
+
+/** What a Sleep or Wake up tap did. */
+sealed interface SleepResult {
+    data class Done(val tap: SleepTap) : SleepResult
+
+    /** Nothing to do: Sleep while already sleeping, or Wake up while not. */
+    data object Ignored : SleepResult
+
+    /** The running activity needs the user first (over 16 hours, or overlaps); nothing changed. */
+    data class Pending(val run: RunResult) : SleepResult
+}
+
 /**
  * Stored time entries and the running activity. Wall-clock instants are stamped here with their
  * zone; entries of one kind never overlap, and every multi-row write is one transaction.
@@ -90,11 +104,13 @@ class TimeRepository @Inject constructor(
     /** Days (up to 7) with at least an hour of actual time recorded. */
     fun observeObservedDays(): Flow<Int> = dao.observeActualSpans().map(TimeRules::observedDays).distinctUntilChanged()
 
-    /** True once a sleep overlaps the night before [date] (18:00 the day before to 14:00) in [zone]. */
+    /** True once a sleep (not a nap) overlaps the night before [date] (18:00 the day before to 14:00) in [zone]. */
     fun observeSleepLogged(date: LocalDate, zone: ZoneId): Flow<Boolean> {
         val from = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
         val to = date.atTime(TimeRules.MORNING_ENDS).atZone(zone).toInstant()
-        return dao.observeSleepCount(TimeRules.SLEEP_ID, from, to, TimeRules.earliestStart(from)).map { it > 0 }.distinctUntilChanged()
+        return dao.observeSleepCount(TimeRules.SLEEP_ID, from, to, TimeRules.earliestStart(from), TimeRules.NAP_BELOW.toMillis())
+            .map { it > 0 }
+            .distinctUntilChanged()
     }
 
     suspend fun entry(id: String): TimeEntryEntity? = dao.entry(id)
@@ -102,10 +118,10 @@ class TimeRepository @Inject constructor(
     /** Where the latest actual entry that ended by [until] ended, looking back a day. */
     suspend fun lastActualEnd(until: Instant): Instant? = dao.lastActualEnd(until.minus(Duration.ofDays(2)), until)
 
-    /** Last night's sleep, prefilled from the last 7 logged sleeps. */
+    /** Last night's sleep, prefilled from the last 7 logged sleeps (naps left out). */
     suspend fun sleepPrefill(date: LocalDate, zone: ZoneId): Pair<Instant, Instant> {
         val since = date.atStartOfDay(zone).toInstant().minus(Duration.ofDays(60))
-        return TimeRules.sleepPrefill(dao.recentSleeps(TimeRules.SLEEP_ID, since, 7), date, zone)
+        return TimeRules.sleepPrefill(dao.recentSleeps(TimeRules.SLEEP_ID, since, TimeRules.NAP_BELOW.toMillis(), 7), date, zone)
     }
 
     /**
@@ -234,6 +250,9 @@ class TimeRepository @Inject constructor(
             }
         }
         val note = draft.note?.trim()?.take(NOTE_MAX)?.ifEmpty { null }
+        // A running activity began in the zone it was started in, which may not be today's
+        // (a sleep on an overnight flight): its start keeps that zone.
+        val startZone = if (draft.fromCurrent) dao.current()?.zoneId ?: entryZone else entryZone
         val saved = if (original == null) {
             TimeEntryEntity(
                 id = UUID.randomUUID().toString(),
@@ -241,7 +260,7 @@ class TimeRepository @Inject constructor(
                 categoryId = draft.categoryId,
                 startAt = start,
                 endAt = end,
-                zoneId = entryZone,
+                zoneId = startZone,
                 endZoneId = entryZone,
                 note = note,
                 createdAt = now,
@@ -299,6 +318,42 @@ class TimeRepository @Inject constructor(
         val now = TimeRules.toMinute(time.now())
         val ended = endCurrentLocked(now) ?: return@withTransaction pendingRun(now)
         RunResult.Done(ended.getOrNull())
+    }
+
+    /**
+     * The Sleep button: sleep starts running now, and a running activity ends at this moment and
+     * is saved first. A second tap while already sleeping does nothing.
+     */
+    suspend fun startSleep(): SleepResult = db.withTransaction {
+        val before = dao.current()
+        if (before?.categoryId == TimeRules.SLEEP_ID) return@withTransaction SleepResult.Ignored
+        val now = TimeRules.toMinute(time.now())
+        val ended = endCurrentLocked(now) ?: return@withTransaction SleepResult.Pending(pendingRun(now))
+        val sleep = CurrentActivityEntity(categoryId = TimeRules.SLEEP_ID, note = null, startAt = now, zoneId = time.zone())
+        dao.upsertCurrent(sleep)
+        SleepResult.Done(SleepTap(before = before, after = sleep, saved = ended.getOrNull()))
+    }
+
+    /** The Wake up button: the running sleep ends now and is saved. Does nothing when not sleeping. */
+    suspend fun wakeUp(): SleepResult = db.withTransaction {
+        val before = dao.current()?.takeIf { it.categoryId == TimeRules.SLEEP_ID } ?: return@withTransaction SleepResult.Ignored
+        val now = TimeRules.toMinute(time.now())
+        val ended = endCurrentLocked(now) ?: return@withTransaction SleepResult.Pending(pendingRun(now))
+        SleepResult.Done(SleepTap(before = before, after = null, saved = ended.getOrNull()))
+    }
+
+    /**
+     * Undo of a Sleep or Wake up tap: what was running before runs again and the entry the tap
+     * saved is removed. False (and nothing changes) when either has changed since the tap.
+     */
+    suspend fun undoSleepTap(tap: SleepTap): Boolean = db.withTransaction {
+        if (dao.current() != tap.after) return@withTransaction false
+        if (tap.saved != null) {
+            if (dao.entry(tap.saved.id) != tap.saved) return@withTransaction false
+            dao.delete(listOf(tap.saved.id))
+        }
+        if (tap.before != null) dao.upsertCurrent(tap.before) else dao.clearCurrent()
+        true
     }
 
     /** Discards the running activity without saving it. */

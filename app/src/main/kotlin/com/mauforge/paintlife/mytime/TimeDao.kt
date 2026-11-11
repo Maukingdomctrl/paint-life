@@ -66,19 +66,19 @@ interface TimeDao {
     @Query("SELECT MAX(endAt) FROM time_entry WHERE kind = 'ACTUAL' AND startAt >= :since AND endAt <= :until")
     suspend fun lastActualEnd(since: Instant, until: Instant): Instant?
 
-    /** The latest actual sleeps that started since [since], newest first. */
+    /** The latest actual sleeps of at least [minMillis] (naps left out) that started since [since], newest first. */
     @Query(
         "SELECT * FROM time_entry WHERE kind = 'ACTUAL' AND categoryId = :sleepId AND startAt >= :since " +
-            "ORDER BY startAt DESC LIMIT :limit",
+            "AND endAt - startAt >= :minMillis ORDER BY startAt DESC LIMIT :limit",
     )
-    suspend fun recentSleeps(sleepId: String, since: Instant, limit: Int): List<TimeEntryEntity>
+    suspend fun recentSleeps(sleepId: String, since: Instant, minMillis: Long, limit: Int): List<TimeEntryEntity>
 
-    /** How many actual sleeps overlap [from, to). */
+    /** How many actual sleeps of at least [minMillis] (naps left out) overlap [from, to). */
     @Query(
         "SELECT COUNT(*) FROM time_entry WHERE kind = 'ACTUAL' AND categoryId = :sleepId " +
-            "AND startAt >= :earliestStart AND startAt < :to AND endAt > :from",
+            "AND startAt >= :earliestStart AND startAt < :to AND endAt > :from AND endAt - startAt >= :minMillis",
     )
-    fun observeSleepCount(sleepId: String, from: Instant, to: Instant, earliestStart: Instant): Flow<Int>
+    fun observeSleepCount(sleepId: String, from: Instant, to: Instant, earliestStart: Instant, minMillis: Long): Flow<Int>
 
     /** Every actual entry's timing (read only while the observation week is still running). */
     @Query("SELECT startAt, endAt, zoneId FROM time_entry WHERE kind = 'ACTUAL' ORDER BY startAt")

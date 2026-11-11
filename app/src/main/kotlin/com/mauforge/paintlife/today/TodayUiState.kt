@@ -26,6 +26,19 @@ data class SleepCardUi(val startLabel: String, val endLabel: String)
 @Immutable
 data class NowDoingToday(val label: String, val colorKey: String, val elapsedMinutes: Long)
 
+/**
+ * Sleep running since the Sleep button was tapped. [askWakeTime]: it is well past the usual wake
+ * time, so Wake up was probably forgotten and the wake time is asked for.
+ */
+@Immutable
+data class SleepingUi(val sinceLabel: String, val elapsedMinutes: Long, val askWakeTime: Boolean)
+
+/** A Sleep or Wake up tap that can still be undone. [token] identifies this one tap. */
+@Immutable
+data class SleepUndoUi(val token: Long, val kind: Kind) {
+    enum class Kind { Asleep, Awake, TooShort }
+}
+
 /** Minutes of one category recorded today, used to paint the Time swatch in category colours. */
 @Immutable
 data class CategoryMinutes(val categoryName: String, val colorKey: String, val minutes: Int)
@@ -35,7 +48,7 @@ data class CategoryMinutes(val categoryName: String, val colorKey: String, val m
 data class TodayStripBlock(val startMinute: Int, val endMinute: Int, val colorKey: String?)
 
 /** The shortcuts under the priorities. */
-enum class QuickAction { StartExercise, QuietTime, LogTime }
+enum class QuickAction { StartExercise, QuietTime, LogTime, Sleep }
 
 /** Unfinished priorities from an earlier day the user may copy to today. */
 @Immutable
@@ -63,6 +76,8 @@ data class TodayUiState(
     /** Set each morning until last night's sleep is logged (or the card is dismissed). */
     val sleepCard: SleepCardUi? = null,
     val nowDoing: NowDoingToday? = null,
+    /** Set while sleep runs: the card with Wake up replaces the running-activity and sleep cards. */
+    val sleeping: SleepingUi? = null,
     /** Length of today in minutes (1380/1440/1500 around DST changes). */
     val dayLengthMinutes: Int = 1440,
 ) {
@@ -92,7 +107,7 @@ data class PendingUndo(val token: Long, val title: String)
 /** One-off message about something that could not be done. */
 @Immutable
 data class TodayNotice(val token: Long, val kind: Kind) {
-    enum class Kind { LimitReached, RestoreFailed, SleepLogged }
+    enum class Kind { LimitReached, RestoreFailed, SleepLogged, SleepUndoFailed }
 }
 
 /** The whole screen: content (null while loading) plus the sheets and messages over it. */
@@ -102,6 +117,7 @@ data class TodayScreenState(
     val editor: PriorityEditorUi? = null,
     val carryOverPickerOpen: Boolean = false,
     val undo: PendingUndo? = null,
+    val sleepUndo: SleepUndoUi? = null,
     val notice: TodayNotice? = null,
     /** Set when My Time should open (it has a sheet waiting); [token] identifies the request. */
     val openMyTime: Long? = null,

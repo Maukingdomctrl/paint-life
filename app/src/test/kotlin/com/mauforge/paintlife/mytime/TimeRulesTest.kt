@@ -197,4 +197,14 @@ class TimeRulesTest {
         // Bedtimes 23:30, 00:00, 00:30: the median is midnight, on the morning's own date.
         assertEquals(at(day, 0) to at(day, 7), TimeRules.sleepPrefill(sleeps, day, london))
     }
+
+    @Test
+    fun theWakeTimeIsAskedForAnHourAfterTheUsualWakeTime() {
+        val bed = at(day.minusDays(1), 23, 14)
+        val usualWake = at(day, 7)
+        assertFalse(TimeRules.wakePromptDue(bed, usualWake, at(day, 7, 59)))
+        assertTrue(TimeRules.wakePromptDue(bed, usualWake, at(day, 8)))
+        // A nap that began after this morning's wake time is not a forgotten night.
+        assertFalse(TimeRules.wakePromptDue(at(day, 14), usualWake, at(day, 18)))
+    }
 }

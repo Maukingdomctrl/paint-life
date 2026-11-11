@@ -12,7 +12,7 @@ and knowing where your time goes.
 No account, no ads, no internet. All data stays on the device.
 
 Built with Kotlin, Jetpack Compose, Material 3, Room and DataStore. Dark theme only.
-Status: version 0.1.0, all 8 iterations complete. Minimum Android 8.0 (API 26).
+Status: version 1.1.0, all 8 iterations complete, plus one-tap Sleep and Wake up buttons (Iteration 9). Minimum Android 8.0 (API 26).
 
 ## Screenshots
 

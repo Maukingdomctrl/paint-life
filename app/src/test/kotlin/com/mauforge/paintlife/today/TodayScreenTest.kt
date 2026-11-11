@@ -298,6 +298,49 @@ class TodayScreenTest {
     }
 
     @Test
+    fun sleepShowsSleepingSinceAndUndoTakesItBack() {
+        show()
+        waitFor(hasTestTag("today_content"))
+        val sleep = hasText(string(R.string.action_sleep)) and hasClickAction()
+        scrollTo(sleep)
+        composeRule.onNode(sleep).performClick()
+
+        waitFor(hasText(string(R.string.today_sleep_started)))
+        scrollTo(hasTestTag("today_sleeping"))
+        composeRule.onNodeWithText(string(R.string.today_sleeping_since, "15:00")).assertExists()
+        // Only Wake up is offered while asleep.
+        assertEquals(0, composeRule.onAllNodes(sleep).fetchSemanticsNodes().size)
+        assertEquals("sleep", runBlocking { TimeRepository(db, time.provider).observeCurrent().first() }?.categoryId)
+
+        composeRule.onNodeWithText(string(R.string.action_undo)).performClick()
+
+        composeRule.waitUntil(5_000) { runBlocking { TimeRepository(db, time.provider).observeCurrent().first() } == null }
+        waitForNo(hasTestTag("today_sleeping"))
+        scrollTo(sleep)
+    }
+
+    @Test
+    fun wakeUpSavesTheSleepInOneTap() {
+        val times = TimeRepository(db, time.provider)
+        time.setLocal(day.atTime(13, 0))
+        runBlocking { times.startSleep() }
+        time.setLocal(day.atTime(15, 0))
+        show()
+        waitFor(hasTestTag("today_sleeping"))
+
+        val wakeUp = hasText(string(R.string.action_wake_up)) and hasClickAction()
+        scrollTo(wakeUp)
+        composeRule.onNode(wakeUp).performClick()
+
+        waitFor(hasText(string(R.string.today_sleep_saved)))
+        waitForNo(hasTestTag("today_sleeping"))
+        val saved = runBlocking { times.observeDayEntries(day).first() }.single().entry
+        assertEquals("sleep", saved.categoryId)
+        assertEquals(day.atTime(13, 0).atZone(time.zone).toInstant(), saved.startAt)
+        assertEquals(day.atTime(15, 0).atZone(time.zone).toInstant(), saved.endAt)
+    }
+
+    @Test
     fun notNowHidesTheSleepCardForTheDay() {
         time.setLocal(day.atTime(8, 30))
         show()

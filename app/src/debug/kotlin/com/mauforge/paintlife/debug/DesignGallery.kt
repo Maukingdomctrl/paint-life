@@ -155,6 +155,8 @@ val galleryEntries: List<GalleryEntry> = listOf(
     today("today_two", "Two priorities", TodaySamples.twoPriorities),
     today("today_full", "Fully painted evening", TodaySamples.fullyPainted),
     today("today_carry_over", "Carry-over offer", TodaySamples.carryOverOffer),
+    today("today_asleep", "Sleeping", TodaySamples.asleep),
+    today("today_forgot_wake", "Forgot Wake up", TodaySamples.forgotWakeUp),
     exercise("exercise_first", "First day", ExerciseSamples.firstDay),
     exercise("exercise_midway", "Two cats beaten", ExerciseSamples.midway),
     exercise("exercise_restored", "Session restored after closing", ExerciseSamples.restoredSession),

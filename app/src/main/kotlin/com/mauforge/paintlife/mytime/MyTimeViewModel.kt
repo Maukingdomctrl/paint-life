@@ -408,7 +408,7 @@ class MyTimeViewModel @Inject constructor(
                 selected.value = endDate.takeIf { it < moment.value.date }
                 local.update {
                     it.copy(
-                        editor = Editor(draft.id, draft.categoryId, draft.note.orEmpty(), draft.start, draft.end, zone, draft.fromCurrent, request.confirmingRunning),
+                        editor = Editor(draft.id, draft.categoryId, draft.note.orEmpty(), draft.start, draft.end, zone, draft.fromCurrent, request.confirmingRunning, then = request.then),
                         overlap = request.overlaps,
                     )
                 }

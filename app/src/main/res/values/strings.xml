@@ -333,6 +333,8 @@
     <string name="my_time_confirm_title">When did it end?</string>
     <string name="my_time_confirm_body">This has been running for over 16 hours. Set when it really ended before it\'s saved.</string>
     <string name="action_discard_running">Don\'t save it</string>
+    <string name="my_time_wake_title">When did you wake up?</string>
+    <string name="my_time_wake_body">Set the time you woke up. Your sleep is saved up to then.</string>
     <string name="my_time_recent">Recent</string>
     <string name="my_time_note">Note (optional)</string>
     <string name="my_time_first_occurrence">%1$s (1st)</string>
@@ -445,6 +447,16 @@
     <string name="action_adjust">Adjust</string>
     <string name="today_sleep_logged">Sleep logged</string>
     <string name="today_now_doing">Now: %1$s · %2$s</string>
+    <string name="action_sleep">Sleep</string>
+    <string name="action_wake_up">Wake up</string>
+    <string name="action_set_wake_time">Set your wake time</string>
+    <string name="today_sleeping_since">Sleeping since %1$s</string>
+    <string name="today_still_sleeping">Still sleeping since %1$s?</string>
+    <string name="today_sleeping_for">%1$s so far</string>
+    <string name="today_sleep_started">Sleep started</string>
+    <string name="today_sleep_saved">Awake. Sleep saved.</string>
+    <string name="today_sleep_too_short">Under a minute, so nothing was saved.</string>
+    <string name="today_notice_sleep_undo_failed">Couldn\'t undo. Your time has changed since.</string>
 
     <!-- Progress -->
     <string name="progress_period_today">Today</string>

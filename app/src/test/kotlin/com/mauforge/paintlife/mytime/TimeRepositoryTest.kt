@@ -23,6 +23,7 @@ import java.io.File
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.UUID
 
@@ -319,5 +320,203 @@ class TimeRepositoryTest {
             }
         }
         assertTrue(plan, plan.contains("index_time_entry_kind_startAt"))
+    }
+
+    // Sleep and Wake up buttons
+
+    private fun sleepAt(dateTime: LocalDateTime): SleepResult {
+        time.setLocal(dateTime)
+        return blocking { repository.startSleep() }
+    }
+
+    private fun wakeAt(dateTime: LocalDateTime): SleepResult {
+        time.setLocal(dateTime)
+        return blocking { repository.wakeUp() }
+    }
+
+    private fun current(): CurrentActivityEntity? = blocking { repository.observeCurrent().first() }
+
+    private val tomorrow: LocalDate = day.plusDays(1)
+
+    @Test
+    fun sleepStartsAtThisMinuteAndWakeUpSavesItAcrossMidnight() {
+        val asleep = sleepAt(day.atTime(23, 14, 40)) as SleepResult.Done
+        assertNull(asleep.tap.saved)
+        assertEquals("sleep", current()?.categoryId)
+        assertEquals(at(day, 23, 14), current()?.startAt)
+        assertEquals(emptyList<Any>(), stored())
+
+        val awake = wakeAt(tomorrow.atTime(7, 2, 30)) as SleepResult.Done
+
+        val entry = awake.tap.saved!!
+        assertEquals(Triple("sleep", at(day, 23, 14), at(tomorrow, 7, 2)), Triple(entry.categoryId, entry.startAt, entry.endAt))
+        assertNull(current())
+        // One stored entry; each day gets its share when it is read.
+        assertEquals(mapOf(day to 46L, tomorrow to 422L), TimeRules.minutesByDay(entry.startAt, entry.endAt, entry.zoneId))
+        assertEquals(listOf(Triple("sleep", "23:14", "07:02")), stored(tomorrow))
+        assertTrue(blocking { repository.observeSleepLogged(tomorrow, zone).first() })
+    }
+
+    @Test
+    fun sleepEndsTheRunningActivityAndUndoPutsItBackRunning() {
+        time.setLocal(day.atTime(9, 0))
+        blocking { repository.startCurrent("work", "emails") }
+        val work = current()
+
+        val tap = (sleepAt(day.atTime(23, 0)) as SleepResult.Done).tap
+        assertEquals(listOf(Triple("work", "09:00", "23:00")), stored())
+        assertEquals("sleep", current()?.categoryId)
+
+        assertTrue(blocking { repository.undoSleepTap(tap) })
+        assertEquals(emptyList<Any>(), stored())
+        assertEquals(work, current())
+        // A second Undo of the same tap finds things changed and does nothing.
+        assertFalse(blocking { repository.undoSleepTap(tap) })
+        assertEquals(work, current())
+    }
+
+    @Test
+    fun undoingWakeUpLetsTheSleepRunOnFromWhereItStarted() {
+        sleepAt(day.atTime(23, 14))
+        val tap = (wakeAt(tomorrow.atTime(7, 0)) as SleepResult.Done).tap
+
+        assertTrue(blocking { repository.undoSleepTap(tap) })
+        assertEquals(emptyList<Any>(), stored(tomorrow))
+        assertEquals(at(day, 23, 14), current()?.startAt)
+
+        wakeAt(tomorrow.atTime(7, 30))
+        assertEquals(listOf(Triple("sleep", "23:14", "07:30")), stored(tomorrow))
+    }
+
+    @Test
+    fun undoIsRefusedOnceAnythingChangedSinceTheTap() {
+        val asleep = (sleepAt(day.atTime(23, 14)) as SleepResult.Done).tap
+        val awake = (wakeAt(tomorrow.atTime(7, 0)) as SleepResult.Done).tap
+        // Undo of the Sleep tap after waking: the sleep is no longer running.
+        assertFalse(blocking { repository.undoSleepTap(asleep) })
+
+        // The saved sleep is edited before Undo of the Wake up tap.
+        val entry = awake.saved!!
+        blocking { repository.save(draft(entry.startAt, at(tomorrow, 6, 30), "sleep", id = entry.id), Resolution.None) }
+        assertFalse(blocking { repository.undoSleepTap(awake) })
+        assertEquals(listOf(Triple("sleep", "23:14", "06:30")), stored(tomorrow))
+        assertNull(current())
+    }
+
+    @Test
+    fun repeatedTapsActOnce() {
+        sleepAt(day.atTime(23, 14))
+        assertEquals(SleepResult.Ignored, sleepAt(day.atTime(23, 20)))
+        assertEquals(at(day, 23, 14), current()?.startAt)
+
+        assertTrue(wakeAt(tomorrow.atTime(7, 0)) is SleepResult.Done)
+        assertEquals(SleepResult.Ignored, wakeAt(tomorrow.atTime(7, 1)))
+        assertEquals(listOf(Triple("sleep", "23:14", "07:00")), stored(tomorrow))
+
+        // Wake up never stops some other running activity.
+        blocking { repository.startCurrent("work", null) }
+        assertEquals(SleepResult.Ignored, wakeAt(tomorrow.atTime(9, 0)))
+        assertEquals("work", current()?.categoryId)
+    }
+
+    @Test
+    fun aSleepUnderAMinuteIsNotSavedAndCanStillBeUndone() {
+        sleepAt(day.atTime(23, 14))
+        val tap = (wakeAt(day.atTime(23, 14, 40)) as SleepResult.Done).tap
+        assertNull(tap.saved)
+        assertEquals(emptyList<Any>(), stored())
+        assertNull(current())
+
+        assertTrue(blocking { repository.undoSleepTap(tap) })
+        assertEquals(at(day, 23, 14), current()?.startAt)
+    }
+
+    @Test
+    fun aZoneChangeOvernightKeepsTheZoneAtEachEnd() {
+        sleepAt(day.atTime(22, 0))
+        // Asleep on a flight: the phone lands in Kolkata eight hours later.
+        val kolkata = ZoneId.of("Asia/Kolkata")
+        time.zone = kolkata
+        time.clock.instant = at(day, 22).plus(Duration.ofHours(8))
+
+        val entry = (blocking { repository.wakeUp() } as SleepResult.Done).tap.saved!!
+
+        assertEquals(zone, entry.zoneId)
+        assertEquals(kolkata, entry.endZoneId)
+        assertEquals(480L, entry.durationMinutes)
+        // Split at midnight in the zone it started in: two hours before, six after.
+        assertEquals(mapOf(day to 120L, tomorrow to 360L), TimeRules.minutesByDay(entry.startAt, entry.endAt, entry.zoneId))
+    }
+
+    @Test
+    fun dstNightsAreMeasuredInRealHours() {
+        // Clocks go forward on 29 March 2026: 23:00 to 07:00 is seven hours.
+        val spring = LocalDate.of(2026, 3, 28)
+        sleepAt(spring.atTime(23, 0))
+        val short = (wakeAt(spring.plusDays(1).atTime(7, 0)) as SleepResult.Done).tap.saved!!
+        assertEquals(7 * 60L, short.durationMinutes)
+
+        // Clocks go back on 25 October 2026: the same wall-clock night is nine hours.
+        val autumn = LocalDate.of(2026, 10, 24)
+        sleepAt(autumn.atTime(23, 0))
+        val long = (wakeAt(autumn.plusDays(1).atTime(7, 0)) as SleepResult.Done).tap.saved!!
+        assertEquals(9 * 60L, long.durationMinutes)
+        assertEquals(mapOf(autumn to 60L, autumn.plusDays(1) to 480L), TimeRules.minutesByDay(long.startAt, long.endAt, long.zoneId))
+    }
+
+    @Test
+    fun aSleepOverSixteenHoursAsksForItsEndAndChangesNothing() {
+        sleepAt(day.atTime(1, 0))
+        val pending = wakeAt(day.atTime(18, 0)) as SleepResult.Pending
+        assertTrue(pending.run is RunResult.ConfirmEnd)
+        assertEquals("sleep", current()?.categoryId)
+        assertEquals(emptyList<Any>(), stored())
+    }
+
+    @Test
+    fun sleepOverAnActivityThatNeedsTheUserWaitsForThem() {
+        time.setLocal(day.atTime(1, 0))
+        blocking { repository.startCurrent("work", null) }
+        val pending = sleepAt(day.atTime(23, 0)) as SleepResult.Pending
+        assertTrue(pending.run is RunResult.ConfirmEnd)
+        assertEquals("work", current()?.categoryId)
+    }
+
+    @Test
+    fun wakingOntoAnEntryLoggedDuringTheNightAsksBeforeChangingIt() {
+        sleepAt(day.atTime(2, 0))
+        time.setLocal(day.atTime(4, 0))
+        saved(at(day, 3), at(day, 3, 30), "family")
+
+        val pending = wakeAt(day.atTime(7, 0)) as SleepResult.Pending
+
+        assertTrue(pending.run is RunResult.Overlaps)
+        assertEquals(listOf(Triple("family", "03:00", "03:30")), stored())
+        assertEquals("sleep", current()?.categoryId)
+    }
+
+    @Test
+    fun aRunningSleepSurvivesARestart() {
+        sleepAt(day.atTime(23, 14))
+        db.close()
+        open()
+        assertEquals(at(day, 23, 14), current()?.startAt)
+        wakeAt(tomorrow.atTime(7, 0))
+        assertEquals(listOf(Triple("sleep", "23:14", "07:00")), stored(tomorrow))
+    }
+
+    @Test
+    fun aNapIsSavedButIsNotLastNightsSleepAndDoesNotMoveTheUsualTimes() {
+        sleepAt(day.atTime(13, 0))
+        wakeAt(day.atTime(13, 40))
+        assertEquals(listOf(Triple("sleep", "13:00", "13:40")), stored())
+        assertFalse(blocking { repository.observeSleepLogged(day, zone).first() })
+        assertEquals(at(day, 23) to at(tomorrow, 7), blocking { repository.sleepPrefill(tomorrow, zone) })
+
+        // A night's sleep does both.
+        sleepAt(day.atTime(23, 30))
+        wakeAt(tomorrow.atTime(6, 30))
+        assertTrue(blocking { repository.observeSleepLogged(tomorrow, zone).first() })
+        assertEquals(at(tomorrow, 23, 30) to at(tomorrow.plusDays(1), 6, 30), blocking { repository.sleepPrefill(tomorrow.plusDays(1), zone) })
     }
 }

@@ -12,8 +12,16 @@ sealed interface LogRequest {
     /** "Log since last entry": from where the last entry ended to now. */
     data object SinceLastEntry : LogRequest
 
-    /** Open the sheet with [draft]; [overlaps] set when it already needs the overlap choice. */
-    data class Draft(val draft: EntryDraft, val overlaps: List<OverlapChange>? = null, val confirmingRunning: Boolean = false) : LogRequest
+    /**
+     * Open the sheet with [draft]; [overlaps] set when it already needs the overlap choice.
+     * [then] starts running once the sheet is done (Sleep tapped over an activity that needed the user).
+     */
+    data class Draft(
+        val draft: EntryDraft,
+        val overlaps: List<OverlapChange>? = null,
+        val confirmingRunning: Boolean = false,
+        val then: QuickActivity? = null,
+    ) : LogRequest
 }
 
 /** Hands a [LogRequest] from Today to My Time, which takes it once it is showing. */

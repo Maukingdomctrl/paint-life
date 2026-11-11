@@ -51,8 +51,11 @@ fun TodayScreen(
                         QuickAction.StartExercise -> onStartExercise()
                         QuickAction.QuietTime -> onOpenQuiet()
                         QuickAction.LogTime -> viewModel.logTime()
+                        QuickAction.Sleep -> viewModel.startSleep()
                     }
                 },
+                onWakeUp = viewModel::wakeUp,
+                onSetWakeTime = viewModel::setWakeTime,
                 onLogSleep = viewModel::logSleep,
                 onAdjustSleep = viewModel::adjustSleep,
                 onDismissSleep = viewModel::dismissSleep,
@@ -107,6 +110,24 @@ fun TodayScreen(
         if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(undo.token) else viewModel.undoExpired(undo.token)
     }
 
+    // A Sleep or Wake up tap: said in a snackbar, with Undo while it shows.
+    val sleepUndo = state.sleepUndo
+    LaunchedEffect(sleepUndo?.token) {
+        if (sleepUndo == null) return@LaunchedEffect
+        val message = when (sleepUndo.kind) {
+            SleepUndoUi.Kind.Asleep -> R.string.today_sleep_started
+            SleepUndoUi.Kind.Awake -> R.string.today_sleep_saved
+            SleepUndoUi.Kind.TooShort -> R.string.today_sleep_too_short
+        }
+        val result = snackbarHostState.showSnackbar(
+            message = resources.getString(message),
+            actionLabel = resources.getString(R.string.action_undo),
+            withDismissAction = false,
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) viewModel.undoSleep(sleepUndo.token) else viewModel.sleepUndoExpired(sleepUndo.token)
+    }
+
     // My Time has a sheet waiting (log since last entry, or a sleep that needs adjusting).
     val openMyTime = state.openMyTime
     LaunchedEffect(openMyTime) {
@@ -122,6 +143,7 @@ fun TodayScreen(
             TodayNotice.Kind.LimitReached -> R.string.today_notice_limit
             TodayNotice.Kind.RestoreFailed -> R.string.today_notice_restore_failed
             TodayNotice.Kind.SleepLogged -> R.string.today_sleep_logged
+            TodayNotice.Kind.SleepUndoFailed -> R.string.today_notice_sleep_undo_failed
         }
         // Cleared only once shown: clearing first would change this effect's key and cancel it.
         try {

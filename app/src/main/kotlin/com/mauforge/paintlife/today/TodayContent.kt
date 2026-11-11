@@ -75,11 +75,14 @@ fun TodayContent(
     onAdjustSleep: () -> Unit = {},
     onDismissSleep: () -> Unit = {},
     onStopNow: () -> Unit = {},
+    onWakeUp: () -> Unit = {},
+    onSetWakeTime: () -> Unit = {},
 ) {
     val spacing = PaintLifeTheme.spacing
     PaintLifeScreen(modifier = modifier.testTag("today_content")) {
         item(key = "header") { TodayHeader(state) }
         item(key = "canvas") { TodayCanvas(state) }
+        state.sleeping?.let { sleeping -> item(key = "sleeping") { SleepingCard(sleeping, onWakeUp, onSetWakeTime) } }
         state.nowDoing?.let { running -> item(key = "now_doing") { NowDoingCard(running, onStopNow) } }
         state.sleepCard?.let { sleep -> item(key = "sleep") { SleepCard(sleep, onLogSleep, onAdjustSleep, onDismissSleep) } }
         item(key = "priorities") {
@@ -126,6 +129,36 @@ private fun NowDoingCard(running: NowDoingToday, onStop: () -> Unit) {
             onClick = onStop,
             modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
         )
+    }
+}
+
+/**
+ * Sleep is running: since when, and Wake up. Well past the usual wake time it asks instead, and
+ * offers to set the wake time.
+ */
+@Composable
+private fun SleepingCard(sleeping: SleepingUi, onWakeUp: () -> Unit, onSetWakeTime: () -> Unit) {
+    val spacing = PaintLifeTheme.spacing
+    PaintLifeCard(Modifier.fillMaxWidth().testTag("today_sleeping")) {
+        Text(
+            text = stringResource(
+                if (sleeping.askWakeTime) R.string.today_still_sleeping else R.string.today_sleeping_since,
+                sleeping.sinceLabel,
+            ),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.today_sleeping_for, DurationFormat.hoursMinutes(sleeping.elapsedMinutes.toInt())),
+            style = PaintLifeTheme.numbers.small,
+            color = PaintLifeTheme.colors.textSecondary,
+            modifier = Modifier.padding(top = spacing.xxs, bottom = spacing.sm),
+        )
+        if (sleeping.askWakeTime) {
+            PrimaryButton(stringResource(R.string.action_set_wake_time), onSetWakeTime, Modifier.fillMaxWidth())
+            SecondaryButton(stringResource(R.string.action_wake_up), onWakeUp, Modifier.fillMaxWidth().padding(top = spacing.sm))
+        } else {
+            PrimaryButton(stringResource(R.string.action_wake_up), onWakeUp, Modifier.fillMaxWidth())
+        }
     }
 }
 
@@ -347,6 +380,7 @@ private fun QuickActions(actions: List<QuickAction>, onAction: (QuickAction) -> 
                         QuickAction.StartExercise -> R.string.action_start_exercise
                         QuickAction.QuietTime -> R.string.action_quiet_time
                         QuickAction.LogTime -> R.string.action_log_time
+                        QuickAction.Sleep -> R.string.action_sleep
                     },
                 )
                 if (index == 0) {

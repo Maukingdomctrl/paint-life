@@ -49,6 +49,7 @@ import com.mauforge.paintlife.today.PriorityItem
 import com.mauforge.paintlife.today.QuickAction
 import com.mauforge.paintlife.today.QuietToday
 import com.mauforge.paintlife.today.SleepCardUi
+import com.mauforge.paintlife.today.SleepingUi
 import com.mauforge.paintlife.today.TodayStripBlock
 import com.mauforge.paintlife.today.TodayUiState
 import java.time.LocalDate
@@ -159,6 +160,19 @@ object TodaySamples {
             ),
             freePlaces = 2,
         ),
+    )
+
+    /** Late evening after tapping Sleep: only Wake up is offered. */
+    val asleep = fullyPainted.copy(
+        quickActions = AllQuickActions - QuickAction.Sleep,
+        sleeping = SleepingUi(sinceLabel = "23:14", elapsedMinutes = 12, askWakeTime = false),
+    )
+
+    /** The next morning, well past the usual wake time: Wake up was probably forgotten. */
+    val forgotWakeUp = emptyMorning.copy(
+        sleepCard = null,
+        quickActions = AllQuickActions - QuickAction.Sleep,
+        sleeping = SleepingUi(sinceLabel = "23:14", elapsedMinutes = 9 * 60 + 31, askWakeTime = true),
     )
 }
 

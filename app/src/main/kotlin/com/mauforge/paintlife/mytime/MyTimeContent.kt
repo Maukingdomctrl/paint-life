@@ -448,12 +448,15 @@ fun LogActivityContent(
 ) {
     val colors = PaintLifeTheme.colors
     val spacing = PaintLifeTheme.spacing
+    // A running sleep being ended: the question is when the user woke up.
+    val wakeTime = state.confirmingRunning && state.selectedCategoryId == TimeRules.SLEEP_ID
     PaintLifeScreen(modifier = modifier.testTag("log_activity"), verticalSpacing = spacing.lg) {
         item(key = "title") {
             Column {
                 Text(
                     text = stringResource(
                         when {
+                            wakeTime -> R.string.my_time_wake_title
                             state.confirmingRunning -> R.string.my_time_confirm_title
                             state.isEditing && state.layer == TimeLayer.Planned -> R.string.my_time_edit_plan_title
                             state.isEditing -> R.string.my_time_edit_title
@@ -466,7 +469,7 @@ fun LogActivityContent(
                 )
                 if (state.confirmingRunning) {
                     Text(
-                        text = stringResource(R.string.my_time_confirm_body),
+                        text = stringResource(if (wakeTime) R.string.my_time_wake_body else R.string.my_time_confirm_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary,
                         modifier = Modifier.padding(top = spacing.xs),

@@ -13,6 +13,7 @@ import com.mauforge.paintlife.mytime.TimeEntryKind
 import com.mauforge.paintlife.mytime.TimeRules
 import com.mauforge.paintlife.exercise.ExerciseRepository
 import com.mauforge.paintlife.quiet.QuietRepository
+import com.mauforge.paintlife.mytime.LogRequest
 import com.mauforge.paintlife.mytime.MyTimeLaunch
 import com.mauforge.paintlife.mytime.TimeRepository
 import com.mauforge.paintlife.testing.testPreferences
@@ -118,7 +119,147 @@ class TodayViewModelTest {
         assertEquals(emptyList<CategoryMinutes>(), content.timeByCategory)
         // 09:00 with nothing recorded: the whole morning is one unrecorded stretch.
         assertEquals(listOf(TodayStripBlock(0, 540, null)), content.strip)
+        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime, QuickAction.Sleep), content.quickActions)
+    }
+
+    private val zone = ZoneId.of("Asia/Kolkata")
+
+    private fun moveTo(dateTime: LocalDateTime) {
+        time.setLocal(dateTime)
+        time.announceChange()
+    }
+
+    /**
+     * 23:14 on [day]. The screen is showing first, so the clock is already listening for the
+     * "time changed" broadcast and cannot miss it.
+     */
+    private fun moveToEvening() {
+        awaitState { it.content != null }
+        moveTo(day.atTime(23, 14))
+        awaitState { it.content?.dayPart == DayPart.Evening }
+    }
+
+    private fun runningActivity() = runBlocking { TimeRepository(db, time.provider).observeCurrent().first() }
+
+    @Test
+    fun sleepShowsSleepingSinceWithOnlyWakeUpAndRepeatedTapsStartItOnce() {
+        moveToEvening()
+
+        onMain {
+            viewModel.startSleep()
+            viewModel.startSleep()
+            viewModel.startSleep()
+        }
+
+        val state = awaitState { it.content?.sleeping != null && it.sleepUndo != null }
+        val content = state.content!!
+        assertEquals(SleepingUi("23:14", 0, askWakeTime = false), content.sleeping)
         assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime), content.quickActions)
+        assertNull(content.nowDoing)
+        assertNull(content.sleepCard)
+        assertEquals(SleepUndoUi.Kind.Asleep, state.sleepUndo!!.kind)
+        assertEquals(day.atTime(23, 14).atZone(zone).toInstant(), runningActivity()?.startAt)
+    }
+
+    @Test
+    fun undoAfterSleepPutsTheButtonBackAndASecondUndoDoesNothing() {
+        awaitState { it.content != null }
+        onMain { viewModel.startSleep() }
+        val undo = awaitState { it.content?.sleeping != null && it.sleepUndo != null }.sleepUndo!!
+
+        onMain {
+            viewModel.undoSleep(undo.token)
+            viewModel.undoSleep(undo.token)
+        }
+
+        val content = awaitState { it.sleepUndo == null && it.content?.sleeping == null }.content!!
+        assertEquals(true, QuickAction.Sleep in content.quickActions)
+        assertNull(runningActivity())
+    }
+
+    @Test
+    fun wakeUpSavesTheNightAndTheMorningCardStaysHidden() = runBlocking<Unit> {
+        moveToEvening()
+        onMain { viewModel.startSleep() }
+        awaitState { it.content?.sleeping != null }
+
+        // 07:10 the next morning: still asleep as far as the app knows, and no card to log sleep.
+        val next = day.plusDays(1)
+        moveTo(next.atTime(7, 10))
+        val morning = awaitState { it.content?.date == next && it.content.sleeping != null }.content!!
+        assertEquals(SleepingUi("23:14", 476, askWakeTime = false), morning.sleeping)
+        assertNull(morning.sleepCard)
+
+        onMain {
+            viewModel.wakeUp()
+            viewModel.wakeUp()
+        }
+
+        val awake = awaitState { it.sleepUndo?.kind == SleepUndoUi.Kind.Awake && it.content?.sleeping == null && it.content?.sleepCard == null }
+        assertEquals(true, QuickAction.Sleep in awake.content!!.quickActions)
+        val saved = TimeRepository(db, time.provider).observeDayEntries(next).first().single().entry
+        assertEquals("sleep", saved.categoryId)
+        assertEquals("23:14" to "07:10", TimeRules.wallTime(saved.startAt, zone).text to TimeRules.wallTime(saved.endAt, zone).text)
+
+        // Undo: asleep again since 23:14, nothing saved.
+        onMain { viewModel.undoSleep(awake.sleepUndo!!.token) }
+        awaitState { it.content?.sleeping?.sinceLabel == "23:14" }
+        assertEquals(emptyList<Any>(), TimeRepository(db, time.provider).observeDayEntries(next).first())
+    }
+
+    @Test
+    fun aForgottenWakeUpAsksForTheWakeTimeInMyTimesSheet() {
+        moveToEvening()
+        onMain { viewModel.startSleep() }
+        awaitState { it.content?.sleeping != null }
+
+        // 10:30 the next morning, well past the usual 07:00.
+        val next = day.plusDays(1)
+        moveTo(next.atTime(10, 30))
+        awaitState { it.content?.date == next && it.content.sleeping?.askWakeTime == true }
+
+        onMain { viewModel.setWakeTime() }
+
+        awaitState { it.openMyTime != null }
+        val request = launch.request.value as LogRequest.Draft
+        assertEquals(true, request.confirmingRunning)
+        assertEquals(
+            EntryDraft(null, TimeEntryKind.ACTUAL, "sleep", null, day.atTime(23, 14).atZone(zone).toInstant(), next.atTime(7, 0).atZone(zone).toInstant(), fromCurrent = true),
+            request.draft,
+        )
+        // Nothing is saved until the sheet is: the sleep is still running.
+        assertEquals("sleep", runningActivity()?.categoryId)
+    }
+
+    @Test
+    fun sleepOverAVeryLongActivityAsksAboutItFirstAndThenStartsSleep() = runBlocking<Unit> {
+        TimeRepository(db, time.provider).startCurrent("work", null)
+        awaitState { it.content?.nowDoing != null }
+        moveTo(day.plusDays(1).atTime(2, 0))
+        awaitState { it.content?.date == day.plusDays(1) && it.content.nowDoing != null }
+
+        onMain { viewModel.startSleep() }
+
+        awaitState { it.openMyTime != null }
+        val request = launch.request.value as LogRequest.Draft
+        assertEquals(true, request.confirmingRunning)
+        assertEquals("work", request.draft.categoryId)
+        assertEquals("sleep", request.then?.categoryId)
+        assertEquals("work", runningActivity()?.categoryId)
+    }
+
+    @Test
+    fun anImportedBackupClearsASleepUndoFromBefore() {
+        awaitState { it.content != null }
+        onMain { viewModel.startSleep() }
+        val token = awaitState { it.sleepUndo != null }.sleepUndo!!.token
+
+        replaced.signal()
+        awaitState { it.sleepUndo == null }
+        onMain { viewModel.undoSleep(token) }
+
+        // The old Undo is gone: whatever is running now is left alone.
+        assertEquals("sleep", runningActivity()?.categoryId)
     }
 
     @Test
@@ -317,7 +458,7 @@ class TodayViewModelTest {
         val state = awaitState { it.content?.exercise?.reps == 40 }
         // The open session has no reps yet, so it doesn't paint the day.
         assertEquals(ExerciseToday(reps = 40, sessions = 1), state.content!!.exercise)
-        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime), state.content.quickActions)
+        assertEquals(listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime, QuickAction.Sleep), state.content.quickActions)
 
         time.setLocal(day.plusDays(1).atTime(0, 1))
         time.announceChange()

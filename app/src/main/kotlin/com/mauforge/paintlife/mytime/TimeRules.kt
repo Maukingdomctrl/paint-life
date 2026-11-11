@@ -62,6 +62,22 @@ object TimeRules {
     /** Sleep is offered on Today until this local time. */
     val MORNING_ENDS: LocalTime = LocalTime.of(14, 0)
 
+    /**
+     * A sleep shorter than this is a nap: saved like any sleep, but it neither counts as last
+     * night's sleep (the morning card stays) nor moves the usual bed and wake times.
+     */
+    val NAP_BELOW: Duration = Duration.ofHours(3)
+
+    /** A sleep still running this long after the usual wake time asks for the wake time. */
+    val WAKE_PROMPT_AFTER: Duration = Duration.ofHours(1)
+
+    /**
+     * True when a sleep running since [sleepStart] was probably not ended on waking: it began
+     * before today's usual wake time ([usualWake]) and that time passed over an hour ago.
+     */
+    fun wakePromptDue(sleepStart: Instant, usualWake: Instant, now: Instant): Boolean =
+        sleepStart < usualWake && now >= usualWake.plus(WAKE_PROMPT_AFTER)
+
     fun toMinute(instant: Instant): Instant = instant.truncatedTo(ChronoUnit.MINUTES)
 
     /** The nearest 5-minute mark ("now" in the pickers). */

@@ -1,6 +1,6 @@
 # Project manifest
 
-Updated at the end of each iteration. Last update: Iteration 8b (final cat roster and art, signed release 0.1.0).
+Updated at the end of each iteration. Last update: Iteration 9 (one-tap Sleep and Wake up buttons, version 1.1.0).
 
 ## Toolchain and versions
 
@@ -67,11 +67,11 @@ Known deviations from the official tables:
 - `core/datastore/UserPreferencesRepository.kt`: first-launch date, exercise safety read, victories seen, quiet notification permission asked, My Time observation complete, sleep card dismissed, insights and Progress periods
 - `core/di/AppModule.kt`: database, DataStore, `TimeProvider`, `DayClock`, `SessionClock`, application scope
 - `core/time/`: `TimeProvider`, `DayClock` (+ `DayMoment`, `DayPart`: which day it is, across midnight, zone and DST changes), `TimerCheckpoint`, `SessionClock` (monotonic clock + boot count), `SessionTimer` (pure pause/resume/checkpoint/recovery rules), `DurationFormat`
-- `today/`: `TodayScreen` (wired: ViewModel, sheets, Undo snackbar), `TodayViewModel`, `TodayRepository` (+ `PriorityTitle`), `TodayDao`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`, `TodaySheets` (add/edit, carry-over picker)
+- `today/`: `TodayScreen` (wired: ViewModel, sheets, Undo snackbars), `TodayViewModel` (+ Sleep / Wake up taps, undo, forgotten wake time), `TodayRepository` (+ `PriorityTitle`), `TodayDao`, `TodayEntities` (DailyRecord, Priority), `TodayUiState`, `TodayContent`, `TodaySheets` (add/edit, carry-over picker)
 - `exercise/`: `ExerciseScreen` (tab, cat detail, session, result, safety and history routes), `ExerciseViewModels` (tab, cat detail, session, result, history, safety), `ExerciseSessionController` (the open session: counting, saves, checkpoints, recovery, timed finish window with Undo), `SessionCounter` (count + undo rules), `ExerciseRepository` (+ `SessionNote`, `PersonalBestKeys`; Cat League unlocks and best times), `ChallengeCompleteContent` (1,000 reps without a win), `ExerciseDao` (+ `ExerciseDayTotals`), `ExerciseEntities` (ChallengeLevel, ExerciseSession, PersonalBest), `ExerciseUiState` (+ `League` mapping, result states), `ExerciseContent`, `ExerciseSessionContent` (+ safety guidance), `ExerciseHistoryContent`, `ExerciseSheets` (correct count, edit session), `CatDetailContent` (+ victory)
 - `exercise/cats/`: `CatRoster` (single source for cat words and art), `CatAvatar` (no app-drawn ring: glow, check badge or greyscale + lock)
 - `quiet/`: `QuietScreen` (wired: permission asked once, Undo snackbar, notices), `QuietViewModel`, `QuietSessionController` (the open session: timing, checkpoints, 5:00 completion, 30-minute pause limit, recovery as incomplete), `QuietTimerService` (`specialUse` foreground service, wake lock only while running, 5:00 alert), `QuietNotifications` (channels, ongoing countdown, alert), `QuietRepository`, `QuietDao`, `QuietRules` (what counts as completed, minutes, swatch fill), `QuietEntities` (QuietSession), `QuietUiState`, `QuietContent` (+ completion bloom)
-- `mytime/`: `MyTimeScreen` (wired: log sheet for actual and planned, overlap choice, Undo, schedule-block prompt, categories sheet), `MyTimeViewModel` (layers, planning up to 7 days ahead), `TimeRepository` (save with overlap rules, delete/undo, running activity, sleep, observation, copy a schedule day, distraction flag), `TimeDao`, `TimeRules` (limits, rounding, overlap plan, midnight split, observation days, sleep prefill, repeated times), `DayView` (which zone a day is shown in, blocks, totals, strip), `MyTimeLaunch` (Today → My Time requests), `MyTimeEntities` (ActivityCategory, TimeEntry, CurrentActivity, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ now doing, log sheet with steppers, overlap), `PlannedLayer` (+ `ScheduleRules`, `ScheduleWithBlocks`: own plans vs approved schedule per day), `Insights` (pure totals, `InsightsPeriod`), `InsightsViewModel`, `InsightsContent` (+ `InsightsScreen`), `Observation` (shared observation-week flow for My Time, Insights and Progress), `ScheduleSuggester` (plain counting over observed days), `ScheduleRepository` (approve in one transaction), `ScheduleViewModel` (in-memory proposal), `ScheduleContent` (+ `ScheduleScreen`, block editor), `CategoriesContent` (+ schedule-block prompt)
+- `mytime/`: `MyTimeScreen` (wired: log sheet for actual and planned, overlap choice, Undo, schedule-block prompt, categories sheet), `MyTimeViewModel` (layers, planning up to 7 days ahead), `TimeRepository` (save with overlap rules, delete/undo, running activity, Sleep and Wake up taps with undo, sleep, observation, copy a schedule day, distraction flag), `TimeDao`, `TimeRules` (limits, rounding, overlap plan, midnight split, observation days, sleep prefill, naps, forgotten wake-up rule, repeated times), `DayView` (which zone a day is shown in, blocks, totals, strip), `MyTimeLaunch` (Today → My Time requests), `MyTimeEntities` (ActivityCategory, TimeEntry, CurrentActivity, DailySchedule, ScheduleBlock), `TimelineGeometry` (DST/midnight-aware), `MyTimeUiState`, `MyTimeContent` (+ now doing, log sheet with steppers, overlap), `PlannedLayer` (+ `ScheduleRules`, `ScheduleWithBlocks`: own plans vs approved schedule per day), `Insights` (pure totals, `InsightsPeriod`), `InsightsViewModel`, `InsightsContent` (+ `InsightsScreen`), `Observation` (shared observation-week flow for My Time, Insights and Progress), `ScheduleSuggester` (plain counting over observed days), `ScheduleRepository` (approve in one transaction), `ScheduleViewModel` (in-memory proposal), `ScheduleContent` (+ `ScheduleScreen`, block editor), `CategoriesContent` (+ schedule-block prompt)
 - `progress/`: `ProgressScreen` (wired), `ProgressViewModel` (remembered period, follows `DayClock`, range reads only), `ProgressRules` (pure reports reusing each screen's own rules: exercise by start day, `QuietRules.dayTotals`, `Insights.report` + `DayView.stretches`), `ProgressUiState` (`ProgressPeriod.range`, `TimeSection` locked/ready), `ProgressContent`, `Charts` (category bars, planned vs actual, daily distribution)
 
 ### Tests (`app/src/test/`)
@@ -80,8 +80,8 @@ Known deviations from the official tables:
 - `core/datastore/UserPreferencesRepositoryTest`
 - `core/time/SessionTimerTest` (pauses excluded, checkpoints, reboot), `core/time/TimeProviderTest`, `core/time/DurationFormatTest`, `core/time/DayClockTest` (midnight, noon, zone change, DST, missed broadcast)
 - `today/TodayRepositoryTest`: max 3 (also concurrent), order, delete/restore, move, carry-over, zones, restart
-- `today/TodayViewModelTest`: midnight rollover, date-line crossing, repeated taps, undo
-- `today/TodayScreenTest`: Compose UI tests for add, complete, edit, move, delete + undo, carry-over, quiet swatch, quick actions, sleep card
+- `today/TodayViewModelTest`: midnight rollover, date-line crossing, repeated taps, undo, Sleep and Wake up (only Wake up while asleep, undo, forgotten wake time, long activity first)
+- `today/TodayScreenTest`: Compose UI tests for add, complete, edit, move, delete + undo, carry-over, quiet swatch, quick actions, sleep card, Sleep + undo, Wake up
 - `quiet/QuietSessionControllerTest`: exact 5:00, pauses excluded, screen-off catch-up, finish early, cancel + undo, pause limit, killed → incomplete, reboot → incomplete, incomplete never counts, midnight, zone and DST
 - `quiet/QuietRulesTest`: completed vs minutes vs incomplete, proportional fill
 - `quiet/QuietScreenTest` (+ `QuietContentTest`): Compose UI end to end, notifications-off note
@@ -99,9 +99,9 @@ Known deviations from the official tables:
 - `exercise/ExerciseSessionScreenTest`, `exercise/ExerciseHistoryScreenTest`: Compose UI end to end (step-ups and timed challenges)
 - `exercise/cats/CatRosterTest`: roster vs seed data, names, every picture a bundled WebP
 - `mytime/TimelineGeometryTest`: midnight split, DST 23/25-hour days, gaps
-- `mytime/TimeRulesTest`: entries crossing midnight (spec §7), own-zone splits, DST nights and repeated times, limits, rounding, overlap plans, observation days, sleep prefill
+- `mytime/TimeRulesTest`: entries crossing midnight (spec §7), own-zone splits, DST nights and repeated times, limits, rounding, overlap plans, observation days, sleep prefill, forgotten wake-up rule
 - `mytime/DayViewTest`: clipping, totals, the day so far, which zone a day is shown in
-- `mytime/TimeRepositoryTest`: overlaps (trim, split, replace, undo), edit, delete + undo, running activity (switch, under a minute, over 16 hours, overlaps, restart), recent, sleep, observation, 5-year history through the index
+- `mytime/TimeRepositoryTest`: overlaps (trim, split, replace, undo), edit, delete + undo, running activity (switch, under a minute, over 16 hours, overlaps, restart), Sleep and Wake up (midnight, switch, undo and refusals, repeated taps, zone change, DST nights, 16 hours, overlaps, restart, naps), recent, sleep, observation, 5-year history through the index
 - `mytime/MyTimeScreenTest`: Compose UI for gap tap, overlap fit + undo, delete + undo, now doing, past days, observation banner, insights hidden until 7 days, planning tomorrow, change a schedule block for one day
 - `mytime/PlannedLayerTest`: own plans vs schedule, history ranges, blocks across midnight and DST, block overlaps
 - `mytime/InsightsTest`: planned never counts as actual, planned vs actual on plan days only, midnight split, DST 23/25-hour days, distraction flag changes, hourly patterns
@@ -141,6 +141,6 @@ Known deviations from the official tables:
 
 ## Release
 
-- Version 0.1.0 (versionCode 1), `com.mauforge.paintlife`, minSdk 26, targetSdk 37.
+- Version 1.1.0 (versionCode 2), `com.mauforge.paintlife`, minSdk 26, targetSdk 37.
 - `./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk`, signed with the owner's key (APK Signature Scheme v2). The build fails without signing details; it never uses the debug key.
 - Permissions in the release APK: `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `WAKE_LOCK` (plus AndroidX's own non-exported receiver permission).

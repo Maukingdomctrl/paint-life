@@ -16,8 +16,11 @@ import com.mauforge.paintlife.mytime.EntryDraft
 import com.mauforge.paintlife.mytime.EntryWithCategory
 import com.mauforge.paintlife.mytime.LogRequest
 import com.mauforge.paintlife.mytime.MyTimeLaunch
+import com.mauforge.paintlife.mytime.QuickActivity
 import com.mauforge.paintlife.mytime.RunResult
 import com.mauforge.paintlife.mytime.SaveResult
+import com.mauforge.paintlife.mytime.SleepResult
+import com.mauforge.paintlife.mytime.SleepTap
 import com.mauforge.paintlife.mytime.TimeEntryKind
 import com.mauforge.paintlife.mytime.TimeRepository
 import com.mauforge.paintlife.mytime.TimeRules
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -79,6 +83,7 @@ class TodayViewModel @Inject constructor(
         val carryOverPickerOpen: Boolean = false,
         val carryingOver: Boolean = false,
         val undo: PendingUndo? = null,
+        val sleepUndo: SleepUndoUi? = null,
         val notice: TodayNotice? = null,
         val openMyTime: Long? = null,
         val sleepBusy: Boolean = false,
@@ -106,6 +111,7 @@ class TodayViewModel @Inject constructor(
 
     private val local = MutableStateFlow(Local())
     private var deleted: PriorityEntity? = null
+    private var sleepTap: SleepTap? = null
     private var nextToken = 0L
 
     private val moment = dayClock.moments.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), dayClock.now())
@@ -157,7 +163,8 @@ class TodayViewModel @Inject constructor(
         viewModelScope.launch {
             replaced.count.drop(1).collect {
                 deleted = null
-                local.update { it.copy(undo = null, editor = null, carryOverPickerOpen = false) }
+                sleepTap = null
+                local.update { it.copy(undo = null, sleepUndo = null, editor = null, carryOverPickerOpen = false) }
             }
         }
     }
@@ -181,7 +188,7 @@ class TodayViewModel @Inject constructor(
             exercise = ExerciseToday(reps = data.exercise.reps, sessions = data.exercise.sessions),
             // Quiet sessions count on the day they started; only finished ones add minutes.
             quiet = QuietToday(completed = data.quiet.completed, minutes = data.quiet.minutes, fill = data.quiet.fill),
-            quickActions = listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime),
+            quickActions = listOf(QuickAction.StartExercise, QuickAction.QuietTime, QuickAction.LogTime, QuickAction.Sleep),
         ).withTime(time, now)
         val editor = when (val editor = local.editor) {
             null -> null
@@ -197,6 +204,7 @@ class TodayViewModel @Inject constructor(
             editor = editor,
             carryOverPickerOpen = local.carryOverPickerOpen && content.carryOver != null,
             undo = local.undo,
+            sleepUndo = local.sleepUndo,
             notice = local.notice,
             openMyTime = local.openMyTime,
         )
@@ -212,16 +220,27 @@ class TodayViewModel @Inject constructor(
         val sleep = TimeRules.sleepSoFar(time.sleep, now)
         val current = time.current
         val category = current?.let { running -> time.categories.firstOrNull { it.id == running.categoryId } }
+        // Sleep started with the Sleep button: its own card with Wake up, and nothing else about sleep.
+        val asleep = current?.takeIf { it.categoryId == TimeRules.SLEEP_ID }
         return copy(
+            quickActions = if (asleep != null) quickActions - QuickAction.Sleep else quickActions,
+            sleeping = asleep?.let {
+                SleepingUi(
+                    // In the zone it was tapped in: the time the user saw on going to bed.
+                    sinceLabel = TimeRules.wallTime(it.startAt, it.zoneId).text,
+                    elapsedMinutes = Duration.between(it.startAt, now).toMinutes().coerceAtLeast(0),
+                    askWakeTime = TimeRules.wakePromptDue(it.startAt, time.sleep.second, now),
+                )
+            },
             timeByCategory = DayView.categoryTotals(onDay, time.date, time.zone).map { CategoryMinutes(it.categoryName, it.colorKey, it.minutes.toInt()) },
             strip = DayView.stretches(onDay, time.date, time.zone, nowMinute).map { TodayStripBlock(it.startMinute, it.endMinute, it.colorKey) },
             dayLengthMinutes = TimelineGeometry.dayLengthMinutes(time.date, time.zone),
-            sleepCard = if (morning && !time.sleepLogged && !time.sleepDismissed && sleep != null) {
+            sleepCard = if (asleep == null && morning && !time.sleepLogged && !time.sleepDismissed && sleep != null) {
                 SleepCardUi(TimeRules.wallTime(sleep.first, time.zone).text, TimeRules.wallTime(sleep.second, time.zone).text)
             } else {
                 null
             },
-            nowDoing = if (current != null && category != null) {
+            nowDoing = if (asleep == null && current != null && category != null) {
                 NowDoingToday(activityLabel(category.name, current.note), category.colorKey, Duration.between(current.startAt, now).toMinutes().coerceAtLeast(0))
             } else {
                 null
@@ -279,17 +298,95 @@ class TodayViewModel @Inject constructor(
 
     /** Stops the running activity. If it needs the user (very long, or overlapping), My Time asks. */
     fun stopNow() {
+        viewModelScope.launch { askInMyTime(time.stopCurrent(), then = null) }
+    }
+
+    /** The running activity could not end on its own: My Time's sheet asks, then starts [then]. */
+    private fun askInMyTime(result: RunResult, then: QuickActivity?) {
+        when (result) {
+            is RunResult.Done -> Unit
+            is RunResult.ConfirmEnd -> {
+                launch.open(LogRequest.Draft(result.draft, confirmingRunning = true, then = then))
+                openMyTime()
+            }
+            is RunResult.Overlaps -> {
+                launch.open(LogRequest.Draft(result.draft, result.fit, then = then))
+                openMyTime()
+            }
+        }
+    }
+
+    // Sleep and Wake up
+
+    /** Sleep: sleep starts running at this minute; a running activity ends and is saved first. */
+    fun startSleep() = tapSleep(asleep = true)
+
+    /** Wake up: the running sleep ends at this minute and is saved. */
+    fun wakeUp() = tapSleep(asleep = false)
+
+    private fun tapSleep(asleep: Boolean) {
+        if (local.value.sleepBusy) return
+        local.update { it.copy(sleepBusy = true) }
         viewModelScope.launch {
-            when (val result = time.stopCurrent()) {
-                is RunResult.Done -> Unit
-                is RunResult.ConfirmEnd -> {
-                    launch.open(LogRequest.Draft(result.draft, confirmingRunning = true))
-                    openMyTime()
+            try {
+                when (val result = if (asleep) time.startSleep() else time.wakeUp()) {
+                    is SleepResult.Done -> {
+                        sleepTap = result.tap
+                        val kind = when {
+                            asleep -> SleepUndoUi.Kind.Asleep
+                            result.tap.saved != null -> SleepUndoUi.Kind.Awake
+                            else -> SleepUndoUi.Kind.TooShort
+                        }
+                        local.update { it.copy(sleepUndo = SleepUndoUi(++nextToken, kind)) }
+                    }
+                    SleepResult.Ignored -> Unit
+                    is SleepResult.Pending -> askInMyTime(result.run, then = if (asleep) sleepActivity() else null)
                 }
-                is RunResult.Overlaps -> {
-                    launch.open(LogRequest.Draft(result.draft, result.fit))
-                    openMyTime()
-                }
+            } finally {
+                local.update { it.copy(sleepBusy = false) }
+            }
+        }
+    }
+
+    private suspend fun sleepActivity(): QuickActivity? =
+        time.observeCategories().first().firstOrNull { it.id == TimeRules.SLEEP_ID }?.let { QuickActivity(it.id, it.name, it.colorKey, null) }
+
+    fun undoSleep(token: Long) {
+        if (local.value.sleepUndo?.token != token) return
+        val tap = sleepTap ?: return
+        sleepTap = null
+        local.update { it.copy(sleepUndo = null) }
+        viewModelScope.launch {
+            if (!time.undoSleepTap(tap)) notify(TodayNotice.Kind.SleepUndoFailed)
+        }
+    }
+
+    /** The Undo offer timed out or was dismissed: the tap stands. */
+    fun sleepUndoExpired(token: Long) {
+        if (local.value.sleepUndo?.token != token) return
+        sleepTap = null
+        local.update { it.copy(sleepUndo = null) }
+    }
+
+    /**
+     * Wake up was forgotten: My Time's sheet opens on the running sleep, ending at the usual wake
+     * time (never after now), for the user to set when they really woke.
+     */
+    fun setWakeTime() {
+        val date = state.value.content?.date ?: return
+        if (local.value.sleepBusy) return
+        local.update { it.copy(sleepBusy = true) }
+        viewModelScope.launch {
+            try {
+                val sleep = time.observeCurrent().first()?.takeIf { it.categoryId == TimeRules.SLEEP_ID } ?: return@launch
+                val latest = TimeRules.latestActualEnd(clock.now())
+                val usual = minOf(time.sleepPrefill(date, clock.zone()).second, latest)
+                val end = if (TimeRules.isValidSpan(sleep.startAt, usual)) usual else minOf(latest, sleep.startAt.plus(TimeRules.MAX_DURATION))
+                val draft = EntryDraft(null, TimeEntryKind.ACTUAL, sleep.categoryId, sleep.note, sleep.startAt, end, fromCurrent = true)
+                launch.open(LogRequest.Draft(draft, confirmingRunning = true))
+                openMyTime()
+            } finally {
+                local.update { it.copy(sleepBusy = false) }
             }
         }
     }
